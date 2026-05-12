@@ -1,0 +1,114 @@
+.dashboard-container {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.dashboard-header {
+  margin-bottom: 1rem;
+}
+
+.mt-2 {
+  margin-top: 2rem;
+}
+
+.stat-card {
+  padding: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.stat-icon-wrapper {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.text-primary { color: var(--accent-primary); background: rgba(99, 102, 241, 0.1); }
+.text-secondary { color: var(--accent-secondary); background: rgba(236, 72, 153, 0.1); }
+.text-success { color: var(--accent-success); background: rgba(16, 185, 129, 0.1); }
+.text-warning { color: var(--accent-warning); background: rgba(245, 158, 11, 0.1); }
+.text-danger { color: var(--accent-danger); background: rgba(239, 68, 68, 0.1); }
+
+.bg-primary { background-color: var(--accent-primary); }
+.bg-warning { background-color: var(--accent-warning); }
+.bg-success { background-color: var(--accent-success); }
+
+.stat-info h3 {
+  font-size: 1.8rem;
+  margin-bottom: 0.2rem;
+}
+
+.stat-info p {
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+.panel {
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.panel h3 {
+  font-size: 1.2rem;
+  border-bottom: 1px solid var(--glass-border);
+  padding-bottom: 1rem;
+  margin-bottom: 0;
+}
+
+.activity-list, .deadline-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.activity-item {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.activity-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-top: 6px;
+  flex-shrink: 0;
+  box-shadow: 0 0 8px currentColor;
+}
+
+.activity-content p {
+  color: var(--text-primary);
+  margin-bottom: 0.2rem;
+}
+
+.activity-content .time {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.deadline-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: var(--border-radius-sm);
+  border: 1px solid var(--glass-border);
+}
+
+.deadline-info h4 {
+  margin-bottom: 0.2rem;
+}
+
+.deadline-info p {
+  font-size: 0.85rem;
+  margin: 0;
+}

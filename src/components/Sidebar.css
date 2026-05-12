@@ -1,0 +1,107 @@
+.sidebar {
+  width: 260px;
+  display: flex;
+  flex-direction: column;
+  padding: 1.5rem;
+  margin: 1rem 0 1rem 1rem;
+  border-radius: var(--border-radius-lg);
+  flex-shrink: 0;
+  z-index: 10;
+}
+
+.sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 2.5rem;
+}
+
+.logo-placeholder {
+  width: 32px;
+  height: 32px;
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+  border-radius: var(--border-radius-sm);
+  box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
+}
+
+.sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  flex: 1;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.875rem 1rem;
+  color: var(--text-secondary);
+  text-decoration: none;
+  border-radius: var(--border-radius-sm);
+  transition: all var(--transition-fast);
+  font-weight: 500;
+}
+
+.nav-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
+}
+
+.nav-item.active {
+  background: linear-gradient(90deg, rgba(99, 102, 241, 0.15), transparent);
+  color: var(--accent-primary);
+  border-left: 3px solid var(--accent-primary);
+}
+
+.nav-item svg {
+  transition: transform var(--transition-fast);
+}
+
+.nav-item:hover svg {
+  transform: scale(1.1);
+}
+
+.sidebar-footer {
+  margin-top: auto;
+  padding-top: 1rem;
+  border-top: 1px solid var(--glass-border);
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  color: white;
+  flex-shrink: 0;
+}
+
+.user-details {
+  display: flex;
+  flex-direction: column;
+}
+
+.user-name {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.role-badge {
+  font-size: 0.7rem;
+  padding: 0.1rem 0.5rem;
+  margin-top: 0.2rem;
+  display: inline-block;
+  width: fit-content;
+  text-transform: capitalize;
+}

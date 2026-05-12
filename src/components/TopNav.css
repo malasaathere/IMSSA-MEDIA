@@ -1,0 +1,71 @@
+.topnav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 2rem;
+  margin: 1rem 1rem 0 1rem;
+  border-radius: var(--border-radius-lg);
+  z-index: 5;
+}
+
+.search-bar {
+  position: relative;
+  width: 100%;
+  max-width: 400px;
+}
+
+.search-icon {
+  position: absolute;
+  left: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-secondary);
+}
+
+.search-input {
+  padding-left: 2.75rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.topnav-actions {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.role-switcher {
+  background: rgba(0, 0, 0, 0.3);
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+}
+
+.role-switcher option {
+  background: var(--bg-color-alt);
+  color: var(--text-primary);
+}
+
+.notification-btn {
+  position: relative;
+  background: transparent;
+  color: var(--text-secondary);
+  border: none;
+  cursor: pointer;
+  transition: color var(--transition-fast);
+}
+
+.notification-btn:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.notification-dot {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 8px;
+  height: 8px;
+  background-color: var(--accent-secondary);
+  border-radius: 50%;
+  box-shadow: 0 0 10px var(--accent-secondary);
+}
