@@ -1,11 +1,12 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { supabase, mockUser } from '../services/supabaseClient';
+import { supabase } from '../services/supabaseClient';
 import { initGoogleClient, signInGoogle, signOutGoogle, getGoogleAuthStatus } from '../services/googleApi';
 
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
+  const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [googleConnected, setGoogleConnected] = useState(false);
   const [googleInit, setGoogleInit] = useState(false);
@@ -17,45 +18,80 @@ export const AuthProvider = ({ children }) => {
       if (success) setGoogleConnected(getGoogleAuthStatus());
     });
 
-    // Check local storage for persistent mock session during UI dev
-    const savedUser = localStorage.getItem('evaluvate_user');
-    if (savedUser) {
-      setUser(JSON.parse(savedUser));
-    } else {
-      // Auto-login with mock user for testing if no one is logged in
-      login(mockUser);
-    }
-    setLoading(false);
-
-    // If using real supabase auth:
-    /*
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    // Initialize Supabase Auth
+    const fetchSessionAndProfile = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
       setUser(session?.user ?? null);
+      if (session?.user) {
+        await fetchProfile(session.user.id);
+      }
+      setLoading(false);
+    };
+
+    fetchSessionAndProfile();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      setUser(session?.user ?? null);
+      if (session?.user) {
+        await fetchProfile(session.user.id);
+      } else {
+        setProfile(null);
+      }
       setLoading(false);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-    });
-
     return () => subscription.unsubscribe();
-    */
   }, []);
 
-  const login = (userData) => {
-    setUser(userData);
-    localStorage.setItem('evaluvate_user', JSON.stringify(userData));
+  const fetchProfile = async (userId) => {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .single();
+    
+    if (data) setProfile(data);
+    if (error) console.error("Error fetching profile:", error);
   };
 
-  const logout = () => {
-    setUser(null);
-    localStorage.removeItem('evaluvate_user');
-    // supabase.auth.signOut();
+  const loginWithUsername = async (username, password) => {
+    // Look up email by username
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('email')
+      .eq('username', username)
+      .single();
+      
+    if (error || !data) {
+      throw new Error("Username not found");
+    }
+
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email: data.email,
+      password: password,
+    });
+    
+    if (signInError) throw signInError;
   };
 
-  const switchRole = (role) => {
-    const updatedUser = { ...user, role };
-    login(updatedUser); // Just for testing UI roles
+  const register = async (email, password, username, name, whatsapp) => {
+    // Check if username is taken first
+    const { data } = await supabase.from('profiles').select('id').eq('username', username).single();
+    if (data) throw new Error("Username is already taken.");
+
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: { username, name, whatsapp_number: whatsapp }
+      }
+    });
+
+    if (error) throw error;
+  };
+
+  const logout = async () => {
+    await supabase.auth.signOut();
   };
 
   const handleGoogleSignIn = async () => {
@@ -74,7 +110,7 @@ export const AuthProvider = ({ children }) => {
 
   return (
     <AuthContext.Provider value={{ 
-      user, login, logout, switchRole, loading, 
+      user, profile, login: loginWithUsername, register, logout, loading, 
       googleConnected, handleGoogleSignIn, handleGoogleSignOut, googleInit 
     }}>
       {!loading && children}
