@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { User, Bell, Shield, LogOut } from 'lucide-react';
 
 const Settings = () => {
-  const { user, logout } = useAuth();
+  const { user, logout, googleConnected, handleGoogleSignIn, handleGoogleSignOut, googleInit } = useAuth();
 
   return (
     <div className="settings-container animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
@@ -46,6 +46,23 @@ const Settings = () => {
               <input type="checkbox" defaultChecked />
               <span>Daily Summary Email</span>
             </label>
+          </div>
+        </div>
+
+        <div className="glass-card panel" style={{ gridColumn: '1 / -1' }}>
+          <h3>Integration Settings</h3>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem', padding: '1rem', background: 'rgba(255,255,255,0.05)', borderRadius: '8px' }}>
+            <div>
+              <h4 style={{ margin: 0 }}>Google Drive & Calendar</h4>
+              <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Connect your account to store design files and sync due dates.</p>
+            </div>
+            {!googleInit ? (
+              <span className="badge badge-warning">API Not Configured</span>
+            ) : googleConnected ? (
+              <button className="btn btn-secondary" onClick={handleGoogleSignOut}>Disconnect Google</button>
+            ) : (
+              <button className="btn btn-primary" onClick={handleGoogleSignIn}>Connect Google Account</button>
+            )}
           </div>
         </div>
       </div>

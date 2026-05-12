@@ -1,13 +1,22 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase, mockUser } from '../services/supabaseClient';
+import { initGoogleClient, signInGoogle, signOutGoogle, getGoogleAuthStatus } from '../services/googleApi';
 
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [googleConnected, setGoogleConnected] = useState(false);
+  const [googleInit, setGoogleInit] = useState(false);
 
   useEffect(() => {
+    // Initialize Google API Client
+    initGoogleClient((success) => {
+      setGoogleInit(success);
+      if (success) setGoogleConnected(getGoogleAuthStatus());
+    });
+
     // Check local storage for persistent mock session during UI dev
     const savedUser = localStorage.getItem('evaluvate_user');
     if (savedUser) {
@@ -49,8 +58,25 @@ export const AuthProvider = ({ children }) => {
     login(updatedUser); // Just for testing UI roles
   };
 
+  const handleGoogleSignIn = async () => {
+    try {
+      const gUser = await signInGoogle();
+      if (gUser) setGoogleConnected(true);
+    } catch (err) {
+      console.error("Google Sign In Failed", err);
+    }
+  };
+
+  const handleGoogleSignOut = () => {
+    signOutGoogle();
+    setGoogleConnected(false);
+  };
+
   return (
-    <AuthContext.Provider value={{ user, login, logout, switchRole, loading }}>
+    <AuthContext.Provider value={{ 
+      user, login, logout, switchRole, loading, 
+      googleConnected, handleGoogleSignIn, handleGoogleSignOut, googleInit 
+    }}>
       {!loading && children}
     </AuthContext.Provider>
   );
