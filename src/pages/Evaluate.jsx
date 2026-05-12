@@ -194,8 +194,8 @@ const Evaluate = () => {
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
 
-      // The Edge Function should return the Google Drive WebViewLink
-      const driveUrl = data?.url || 'https://drive.google.com/';
+      // Extract the direct image URL from Google Drive
+      const driveUrl = data?.id ? `https://drive.google.com/uc?export=view&id=${data.id}` : 'https://drive.google.com/';
 
       await supabase.from('project_revisions').insert([{
         project_id: selectedProject.id,
@@ -204,8 +204,7 @@ const Evaluate = () => {
         image_url: driveUrl
       }]);
 
-      const localUrl = URL.createObjectURL(file);
-      setUploadedImage(localUrl);
+      setUploadedImage(driveUrl);
     } catch (err) {
       console.error("Upload failed", err);
       alert("Failed to upload to Google Drive. Ensure the Edge Function is deployed and secrets are set.");
@@ -287,13 +286,21 @@ const Evaluate = () => {
 
             {uploadedImage ? (
               <div className="annotation-section mt-2">
-                <h3>Design Canvas Preview</h3>
-                <EvaluationCanvas imageUrl={uploadedImage} ref={canvasRef} />
-                {isAdmin && (
-                  <button className="btn btn-primary mt-2" style={{width: '100%'}} onClick={handleSaveAnnotations} disabled={isUploading}>
-                    {isUploading ? <Loader2 className="spin" size={18} /> : <Save size={18} />} 
-                    {isUploading ? 'Saving...' : 'Save Annotations'}
-                  </button>
+                <h3>Design Preview</h3>
+                {uploadedImage.includes('drive.google.com') ? (
+                  <div className="stage-wrapper glass-panel flex-center" style={{ height: '400px', width: '100%', overflow: 'hidden' }}>
+                    <img src={uploadedImage} alt="Design Preview" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
+                  </div>
+                ) : (
+                  <>
+                    <EvaluationCanvas imageUrl={uploadedImage} ref={canvasRef} />
+                    {isAdmin && (
+                      <button className="btn btn-primary mt-2" style={{width: '100%'}} onClick={handleSaveAnnotations} disabled={isUploading}>
+                        {isUploading ? <Loader2 className="spin" size={18} /> : <Save size={18} />} 
+                        {isUploading ? 'Saving...' : 'Save Annotations'}
+                      </button>
+                    )}
+                  </>
                 )}
               </div>
             ) : (

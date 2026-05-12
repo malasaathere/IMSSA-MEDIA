@@ -33,6 +33,12 @@ const AppContent = () => {
           <Route path="chat" element={<Communication />} />
           <Route path="users" element={<UserManagement />} />
           <Route path="settings" element={<Settings />} />
+          <Route path="*" element={
+            <div style={{ height: '80vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+              <h1 className="gradient-text" style={{ fontSize: '4rem' }}>404</h1>
+              <p style={{ color: 'var(--text-secondary)' }}>The page you are looking for does not exist.</p>
+            </div>
+          } />
         </Route>
       </Routes>
     </Router>
