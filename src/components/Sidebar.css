@@ -105,3 +105,20 @@
   width: fit-content;
   text-transform: capitalize;
 }
+
+.logout-btn {
+  background: transparent;
+  border: none;
+  width: 100%;
+  cursor: pointer;
+  color: var(--text-secondary);
+  margin-top: 0.5rem;
+  justify-content: flex-start;
+  font-family: inherit;
+  font-size: 1rem;
+}
+
+.logout-btn:hover {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}

@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, CheckSquare, Image as ImageIcon, Calendar as CalendarIcon, Settings as SettingsIcon, LogOut, Users, MessageCircle } from 'lucide-react';
+import { LayoutDashboard, CheckSquare, Image as ImageIcon, Calendar as CalendarIcon, Settings as SettingsIcon, LogOut, Users, MessageCircle, Camera } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import './Sidebar.css';
 
@@ -11,9 +11,11 @@ const Sidebar = () => {
 
   return (
     <aside className="sidebar glass-panel">
-      <div className="sidebar-logo">
-        <div className="logo-icon"></div>
-        <h2>Evaluvate</h2>
+      <div className="sidebar-brand">
+        <div className="logo-placeholder" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
+          <Camera size={18} />
+        </div>
+        <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 'bold' }}>Evaluvate</h2>
       </div>
 
       <nav className="sidebar-nav">

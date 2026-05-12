@@ -23,9 +23,13 @@
 }
 
 .search-input {
-  padding-left: 2.75rem;
+  padding: 0.6rem 1rem 0.6rem 2.5rem;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--glass-border);
+  width: 100%;
+  color: var(--text-primary);
+  font-size: 0.9rem;
 }
 
 .topnav-actions {
