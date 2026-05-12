@@ -3,7 +3,6 @@ import { Stage, Layer, Line, Image as KonvaImage } from 'react-konva';
 import useImage from 'use-image';
 import { Upload, PenTool, Eraser, Save, MessageSquare, Send, Loader2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { uploadToDrive } from '../services/googleApi';
 import { supabase } from '../services/supabaseClient';
 import './Evaluate.css';
 
@@ -89,7 +88,7 @@ const EvaluationCanvas = forwardRef(({ imageUrl }, ref) => {
 });
 
 const Evaluate = () => {
-  const { profile, googleConnected } = useAuth();
+  const { profile } = useAuth();
   
   const [projects, setProjects] = useState([]);
   const [selectedProject, setSelectedProject] = useState(null);
@@ -164,33 +163,54 @@ const Evaluate = () => {
     if (!error) setNewComment('');
   };
 
+  // Helper to convert File/Blob to Base64
+  const fileToBase64 = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result.split(',')[1]); // get raw base64 string
+      reader.onerror = error => reject(error);
+    });
+  };
+
   const handleImageUpload = async (e) => {
     const file = e.target.files[0];
     if (!file || !selectedProject) return;
 
-    if (googleConnected) {
-      setIsUploading(true);
-      try {
-        const response = await uploadToDrive(file, `Upload_${Date.now()}_${file.name}`);
-        const fakeDriveUrl = `https://lh3.googleusercontent.com/d/${response.id}`; // Hacky representation of Drive URL for canvas
-        
-        await supabase.from('project_revisions').insert([{
-          project_id: selectedProject.id,
-          user_id: profile.id,
-          text_content: 'Uploaded a new revision.',
-          image_url: fakeDriveUrl
-        }]);
+    setIsUploading(true);
+    try {
+      const base64Data = await fileToBase64(file);
+      const fileName = `Upload_${Date.now()}_${file.name}`;
 
-        const localUrl = URL.createObjectURL(file);
-        setUploadedImage(localUrl);
-      } catch (err) {
-        console.error("Upload failed", err);
-        alert("Failed to upload to Google Drive.");
-      }
-      setIsUploading(false);
-    } else {
-      alert("Please connect Google Drive (Super Admin required) to upload actual files.");
+      // Call the Supabase Edge Function to upload to Google Drive
+      const { data, error } = await supabase.functions.invoke('upload-drive', {
+        body: { 
+          fileName: fileName,
+          mimeType: file.type,
+          fileBase64: base64Data
+        }
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      // The Edge Function should return the Google Drive WebViewLink
+      const driveUrl = data?.url || 'https://drive.google.com/';
+
+      await supabase.from('project_revisions').insert([{
+        project_id: selectedProject.id,
+        user_id: profile.id,
+        text_content: 'Uploaded a new revision directly to Google Drive.',
+        image_url: driveUrl
+      }]);
+
+      const localUrl = URL.createObjectURL(file);
+      setUploadedImage(localUrl);
+    } catch (err) {
+      console.error("Upload failed", err);
+      alert("Failed to upload to Google Drive. Ensure the Edge Function is deployed and secrets are set.");
     }
+    setIsUploading(false);
   };
 
   const handleSaveAnnotations = async () => {
@@ -201,21 +221,31 @@ const Evaluate = () => {
       const blob = await canvasRef.current.exportImage();
       const fileToUpload = new File([blob], `Annotation_${Date.now()}.png`, { type: 'image/png' });
       
-      if (googleConnected) {
-        const response = await uploadToDrive(fileToUpload, fileToUpload.name);
-        const fakeDriveUrl = `https://lh3.googleusercontent.com/d/${response.id}`;
-        
-        await supabase.from('project_revisions').insert([{
-          project_id: selectedProject.id,
-          user_id: profile.id,
-          text_content: 'Saved annotated feedback.',
-          image_url: fakeDriveUrl
-        }]);
-      } else {
-        alert("Annotations ready! Connect Google Drive to save them permanently.");
-      }
+      const base64Data = await fileToBase64(fileToUpload);
+      const fileName = `Annotation_${Date.now()}.png`;
+
+      const { data, error } = await supabase.functions.invoke('upload-drive', {
+        body: { 
+          fileName: fileName,
+          mimeType: 'image/png',
+          fileBase64: base64Data
+        }
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      const driveUrl = data?.url || 'https://drive.google.com/';
+      
+      await supabase.from('project_revisions').insert([{
+        project_id: selectedProject.id,
+        user_id: profile.id,
+        text_content: 'Saved annotated feedback to Google Drive.',
+        image_url: driveUrl
+      }]);
     } catch (err) {
       console.error("Failed to save annotations", err);
+      alert("Failed to save annotation to Google Drive.");
     }
     setIsUploading(false);
   };
