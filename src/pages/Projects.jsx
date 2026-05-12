@@ -232,7 +232,10 @@ const Projects = () => {
                 {profiles.filter(p => ['Super Admin', 'Admin', 'Event Coordinator'].includes(p.role)).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
 
-              <input type="datetime-local" className="glass-input" value={newProject.due_date} onChange={e => setNewProject({...newProject, due_date: e.target.value})} required />
+              <div className="input-group">
+                <Calendar size={20} className="input-icon" />
+                <input type="datetime-local" className="glass-input" value={newProject.due_date} onChange={e => setNewProject({...newProject, due_date: e.target.value})} required title="Select project deadline" />
+              </div>
               
               <input type="number" className="glass-input" placeholder="Points Awarded" value={newProject.points_awarded} onChange={e => setNewProject({...newProject, points_awarded: e.target.value})} required />
 

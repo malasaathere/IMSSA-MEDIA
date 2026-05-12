@@ -112,6 +112,7 @@ const Login = () => {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   required 
+                  minLength={3}
                 />
               </div>
               <div className="input-group animate-fade-in">
@@ -130,10 +131,12 @@ const Login = () => {
                 <input 
                   type="tel" 
                   className="glass-input" 
-                  placeholder="WhatsApp Number" 
+                  placeholder="WhatsApp Number (+94...)" 
                   value={whatsapp}
                   onChange={handleWhatsappChange}
                   required 
+                  pattern="^\+94\d{9}$"
+                  title="Phone number must start with +94 followed by 9 digits."
                 />
               </div>
             </>
@@ -158,10 +161,11 @@ const Login = () => {
                 <input 
                   type="password" 
                   className="glass-input" 
-                  placeholder="Password" 
+                  placeholder="Password (min 6 chars)" 
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required 
+                  minLength={6}
                 />
               </div>
             </>
@@ -177,6 +181,7 @@ const Login = () => {
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 required 
+                minLength={6}
               />
             </div>
           )}
