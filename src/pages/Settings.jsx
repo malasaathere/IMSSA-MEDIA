@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { User, Bell, Shield, LogOut } from 'lucide-react';
 
 const Settings = () => {
-  const { profile, logout, googleConnected, handleGoogleSignIn, handleGoogleSignOut, googleInit } = useAuth();
+  const { profile, logout } = useAuth();
 
   return (
     <div className="settings-container animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
