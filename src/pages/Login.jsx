@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Camera, Mail, Lock, User, Phone, CheckCircle } from 'lucide-react';
+import { Camera, Mail, Lock, User, Phone, CheckCircle, Key } from 'lucide-react';
 import './Login.css';
 
 const Login = () => {
-  const { login, register } = useAuth();
-  const [isRegistering, setIsRegistering] = useState(false);
+  const { login, register, verifyOtp } = useAuth();
+  const [viewState, setViewState] = useState('login'); // 'login', 'register', 'otp'
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
@@ -13,9 +13,21 @@ const Login = () => {
   // Form states
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
-  const [whatsapp, setWhatsapp] = useState('');
+  const [whatsapp, setWhatsapp] = useState('+94');
+  const [otpCode, setOtpCode] = useState('');
+
+  const handleWhatsappChange = (e) => {
+    const val = e.target.value;
+    // Ensure it always starts with +94
+    if (val.startsWith('+94')) {
+      setWhatsapp(val);
+    } else if (val === '+9' || val === '+' || val === '') {
+      setWhatsapp('+94');
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -24,12 +36,20 @@ const Login = () => {
     setSuccessMsg('');
 
     try {
-      if (isRegistering) {
+      if (viewState === 'register') {
+        if (password !== confirmPassword) {
+          throw new Error("Passwords do not match!");
+        }
         await register(email, password, username, name, whatsapp);
-        setSuccessMsg("Registration successful! Please check your email/WhatsApp for the OTP verification link before logging in.");
-        setIsRegistering(false); // flip back to login
+        setSuccessMsg("Registration successful! An OTP has been sent to your email.");
+        setViewState('otp');
+      } else if (viewState === 'otp') {
+        await verifyOtp(email, otpCode);
+        setSuccessMsg("Verification successful! You can now log in.");
+        setViewState('login');
       } else {
         await login(username, password);
+        // App.jsx automatically unmounts this component on successful login
       }
     } catch (err) {
       console.error(err);
@@ -46,7 +66,11 @@ const Login = () => {
             <Camera size={32} color="white" />
           </div>
           <h1 className="gradient-text">IMSSA Media</h1>
-          <p>{isRegistering ? 'Create your account' : 'Welcome back, please log in'}</p>
+          <p>
+            {viewState === 'register' && 'Create your account'}
+            {viewState === 'login' && 'Welcome back, please log in'}
+            {viewState === 'otp' && 'Enter Verification Code'}
+          </p>
         </div>
 
         {errorMsg && (
@@ -62,9 +86,24 @@ const Login = () => {
         )}
 
         <form onSubmit={handleSubmit} className="login-form">
-          {isRegistering && (
+          {viewState === 'otp' && (
+            <div className="input-group animate-fade-in">
+              <Key size={20} className="input-icon" />
+              <input 
+                type="text" 
+                className="glass-input" 
+                placeholder="6-Digit OTP Code" 
+                value={otpCode}
+                onChange={(e) => setOtpCode(e.target.value)}
+                maxLength={6}
+                required 
+              />
+            </div>
+          )}
+
+          {viewState === 'register' && (
             <>
-              <div className="input-group">
+              <div className="input-group animate-fade-in">
                 <User size={20} className="input-icon" />
                 <input 
                   type="text" 
@@ -75,7 +114,7 @@ const Login = () => {
                   required 
                 />
               </div>
-              <div className="input-group">
+              <div className="input-group animate-fade-in">
                 <Mail size={20} className="input-icon" />
                 <input 
                   type="email" 
@@ -86,58 +125,85 @@ const Login = () => {
                   required 
                 />
               </div>
-              <div className="input-group">
+              <div className="input-group animate-fade-in">
                 <Phone size={20} className="input-icon" />
                 <input 
                   type="tel" 
                   className="glass-input" 
                   placeholder="WhatsApp Number" 
                   value={whatsapp}
-                  onChange={(e) => setWhatsapp(e.target.value)}
+                  onChange={handleWhatsappChange}
                   required 
                 />
               </div>
             </>
           )}
 
-          <div className="input-group">
-            <User size={20} className="input-icon" />
-            <input 
-              type="text" 
-              className="glass-input" 
-              placeholder="Username" 
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              required 
-            />
-          </div>
+          {viewState !== 'otp' && (
+            <>
+              <div className="input-group animate-fade-in">
+                <User size={20} className="input-icon" />
+                <input 
+                  type="text" 
+                  className="glass-input" 
+                  placeholder="Username" 
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  required 
+                />
+              </div>
 
-          <div className="input-group">
-            <Lock size={20} className="input-icon" />
-            <input 
-              type="password" 
-              className="glass-input" 
-              placeholder="Password" 
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required 
-            />
-          </div>
+              <div className="input-group animate-fade-in">
+                <Lock size={20} className="input-icon" />
+                <input 
+                  type="password" 
+                  className="glass-input" 
+                  placeholder="Password" 
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required 
+                />
+              </div>
+            </>
+          )}
+
+          {viewState === 'register' && (
+            <div className="input-group animate-fade-in">
+              <Lock size={20} className="input-icon" />
+              <input 
+                type="password" 
+                className="glass-input" 
+                placeholder="Confirm Password" 
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required 
+              />
+            </div>
+          )}
 
           <button type="submit" className="btn btn-primary login-btn" disabled={isLoading}>
-            {isLoading ? 'Processing...' : (isRegistering ? 'Register' : 'Log In')}
+            {isLoading ? 'Processing...' : (
+              viewState === 'register' ? 'Register' : 
+              viewState === 'otp' ? 'Verify OTP' : 'Log In'
+            )}
           </button>
         </form>
 
         <div className="login-footer">
           <p>
-            {isRegistering ? 'Already have an account?' : "Don't have an account?"}
+            {viewState === 'register' ? 'Already have an account?' : 
+             viewState === 'otp' ? 'Did not receive code?' : "Don't have an account?"}
             <button 
               type="button" 
               className="link-btn" 
-              onClick={() => setIsRegistering(!isRegistering)}
+              onClick={() => {
+                setErrorMsg('');
+                setSuccessMsg('');
+                setViewState(viewState === 'login' ? 'register' : 'login');
+              }}
             >
-              {isRegistering ? 'Log In' : 'Register'}
+              {viewState === 'register' ? 'Log In' : 
+               viewState === 'otp' ? 'Back to Login' : 'Register'}
             </button>
           </p>
         </div>
