@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { User, Bell, Shield, LogOut } from 'lucide-react';
 
 const Settings = () => {
-  const { user, logout, googleConnected, handleGoogleSignIn, handleGoogleSignOut, googleInit } = useAuth();
+  const { profile, logout, googleConnected, handleGoogleSignIn, handleGoogleSignOut, googleInit } = useAuth();
 
   return (
     <div className="settings-container animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
@@ -18,15 +18,15 @@ const Settings = () => {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem' }}>
             <div>
               <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>Full Name</label>
-              <input type="text" className="glass-input" defaultValue={user?.name} readOnly />
+              <input type="text" className="glass-input" defaultValue={profile?.name} readOnly />
             </div>
             <div>
               <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>Email</label>
-              <input type="email" className="glass-input" defaultValue={user?.email} readOnly />
+              <input type="email" className="glass-input" defaultValue={profile?.email} readOnly />
             </div>
             <div>
               <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>Role</label>
-              <input type="text" className="glass-input" defaultValue={user?.role} style={{ textTransform: 'capitalize' }} readOnly />
+              <input type="text" className="glass-input" defaultValue={profile?.role} style={{ textTransform: 'capitalize' }} readOnly />
             </div>
           </div>
         </div>

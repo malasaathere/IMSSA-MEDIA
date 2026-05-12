@@ -1,22 +1,22 @@
-import React, { useState, useRef, useImperativeHandle, forwardRef } from 'react';
+import React, { useState, useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { Stage, Layer, Line, Image as KonvaImage } from 'react-konva';
 import useImage from 'use-image';
 import { Upload, PenTool, Eraser, Save, MessageSquare, Send, Loader2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { uploadToDrive } from '../services/googleApi';
+import { supabase } from '../services/supabaseClient';
 import './Evaluate.css';
 
 const EvaluationCanvas = forwardRef(({ imageUrl }, ref) => {
   const [image] = useImage(imageUrl);
   const [lines, setLines] = useState([]);
-  const [tool, setTool] = useState('pen'); // 'pen' or 'eraser'
+  const [tool, setTool] = useState('pen'); 
   const isDrawing = useRef(false);
   const stageRef = useRef(null);
 
   useImperativeHandle(ref, () => ({
     exportImage: async () => {
       if (!stageRef.current) return null;
-      // Convert canvas to blob
       const dataUrl = stageRef.current.toDataURL();
       const res = await fetch(dataUrl);
       return await res.blob();
@@ -58,7 +58,7 @@ const EvaluationCanvas = forwardRef(({ imageUrl }, ref) => {
           <span style={{ fontSize: '12px', fontWeight: 'bold' }}>Clear</span>
         </button>
       </div>
-      <div className="stage-wrapper glass-panel">
+      <div className="stage-wrapper glass-panel" style={{ height: '400px', width: '100%', overflow: 'hidden' }}>
         <Stage
           width={600}
           height={400}
@@ -73,14 +73,12 @@ const EvaluationCanvas = forwardRef(({ imageUrl }, ref) => {
               <Line
                 key={i}
                 points={line.points}
-                stroke={line.tool === 'eraser' ? '#ffffff' : '#ef4444'} // Red for annotations
+                stroke={line.tool === 'eraser' ? '#ffffff' : '#ef4444'}
                 strokeWidth={line.tool === 'eraser' ? 20 : 4}
                 tension={0.5}
                 lineCap="round"
                 lineJoin="round"
-                globalCompositeOperation={
-                  line.tool === 'eraser' ? 'destination-out' : 'source-over'
-                }
+                globalCompositeOperation={line.tool === 'eraser' ? 'destination-out' : 'source-over'}
               />
             ))}
           </Layer>
@@ -91,53 +89,128 @@ const EvaluationCanvas = forwardRef(({ imageUrl }, ref) => {
 });
 
 const Evaluate = () => {
-  const { user, googleConnected } = useAuth();
-  const [uploadedImage, setUploadedImage] = useState('https://images.unsplash.com/photo-1626785774573-4b799315345d?auto=format&fit=crop&w=600&q=80'); // Mock initial image
-  const [driveFileId, setDriveFileId] = useState(null);
+  const { profile, googleConnected } = useAuth();
+  
+  const [projects, setProjects] = useState([]);
+  const [selectedProject, setSelectedProject] = useState(null);
+  
+  const [revisions, setRevisions] = useState([]);
+  const [profilesMap, setProfilesMap] = useState({});
+  const [newComment, setNewComment] = useState('');
+  
+  const [uploadedImage, setUploadedImage] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
   const canvasRef = useRef(null);
-  const [comments, setComments] = useState([
-    { id: 1, user: 'Sarah', role: 'member', text: 'Here is the first draft of the logo animation frame.', time: '2 hours ago' }
-  ]);
-  const [newComment, setNewComment] = useState('');
+
+  useEffect(() => {
+    fetchInitialData();
+  }, []);
+
+  useEffect(() => {
+    if (selectedProject) {
+      fetchRevisions(selectedProject.id);
+      
+      const sub = supabase
+        .channel('public:project_revisions')
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'project_revisions', filter: `project_id=eq.${selectedProject.id}` }, (payload) => {
+          setRevisions(current => [...current, payload.new]);
+        })
+        .subscribe();
+      return () => supabase.removeChannel(sub);
+    } else {
+      setRevisions([]);
+      setUploadedImage(null);
+    }
+  }, [selectedProject]);
+
+  const fetchInitialData = async () => {
+    // Get profiles for mapping
+    const { data: profs } = await supabase.from('profiles').select('id, name, role');
+    if (profs) {
+      const map = {};
+      profs.forEach(p => map[p.id] = p);
+      setProfilesMap(map);
+    }
+
+    // Get projects
+    const { data: projs } = await supabase.from('projects').select('*').order('created_at', { ascending: false });
+    if (projs) {
+      setProjects(projs);
+      if (projs.length > 0) setSelectedProject(projs[0]);
+    }
+  };
+
+  const fetchRevisions = async (projectId) => {
+    const { data } = await supabase.from('project_revisions').select('*').eq('project_id', projectId).order('created_at', { ascending: true });
+    if (data) {
+      setRevisions(data);
+      // Auto load the latest image to the canvas if it exists
+      const latestImage = [...data].reverse().find(r => r.image_url);
+      if (latestImage) {
+        setUploadedImage(latestImage.image_url);
+      } else {
+        setUploadedImage(null);
+      }
+    }
+  };
+
+  const handleSendComment = async () => {
+    if (!newComment.trim() || !selectedProject) return;
+    const { error } = await supabase.from('project_revisions').insert([{
+      project_id: selectedProject.id,
+      user_id: profile.id,
+      text_content: newComment.trim()
+    }]);
+    if (!error) setNewComment('');
+  };
 
   const handleImageUpload = async (e) => {
     const file = e.target.files[0];
-    if (!file) return;
+    if (!file || !selectedProject) return;
 
     if (googleConnected) {
       setIsUploading(true);
       try {
         const response = await uploadToDrive(file, `Upload_${Date.now()}_${file.name}`);
-        setDriveFileId(response.id);
+        const fakeDriveUrl = `https://lh3.googleusercontent.com/d/${response.id}`; // Hacky representation of Drive URL for canvas
         
-        // Since we uploaded it, we still want to show it immediately via local URL
+        await supabase.from('project_revisions').insert([{
+          project_id: selectedProject.id,
+          user_id: profile.id,
+          text_content: 'Uploaded a new revision.',
+          image_url: fakeDriveUrl
+        }]);
+
         const localUrl = URL.createObjectURL(file);
         setUploadedImage(localUrl);
-        setComments([...comments, { id: Date.now(), user: 'System', role: 'system', text: `File successfully saved to Google Drive (ID: ${response.id})`, time: 'Just now' }]);
       } catch (err) {
-        console.error("Failed to upload to Drive", err);
+        console.error("Upload failed", err);
         alert("Failed to upload to Google Drive.");
       }
       setIsUploading(false);
     } else {
-      // Fallback local upload
-      const url = URL.createObjectURL(file);
-      setUploadedImage(url);
+      alert("Please connect Google Drive (Super Admin required) to upload actual files.");
     }
   };
 
   const handleSaveAnnotations = async () => {
-    if (!canvasRef.current) return;
+    if (!canvasRef.current || !selectedProject) return;
     
     setIsUploading(true);
     try {
       const blob = await canvasRef.current.exportImage();
-      const fileToUpload = new File([blob], `Revision_${Date.now()}.png`, { type: 'image/png' });
+      const fileToUpload = new File([blob], `Annotation_${Date.now()}.png`, { type: 'image/png' });
       
       if (googleConnected) {
         const response = await uploadToDrive(fileToUpload, fileToUpload.name);
-        setComments([...comments, { id: Date.now(), user: 'System', role: 'system', text: `Annotated revision saved to Google Drive (ID: ${response.id})`, time: 'Just now' }]);
+        const fakeDriveUrl = `https://lh3.googleusercontent.com/d/${response.id}`;
+        
+        await supabase.from('project_revisions').insert([{
+          project_id: selectedProject.id,
+          user_id: profile.id,
+          text_content: 'Saved annotated feedback.',
+          image_url: fakeDriveUrl
+        }]);
       } else {
         alert("Annotations ready! Connect Google Drive to save them permanently.");
       }
@@ -147,80 +220,101 @@ const Evaluate = () => {
     setIsUploading(false);
   };
 
-  const handleSendComment = () => {
-    if (!newComment.trim()) return;
-    setComments([...comments, { id: Date.now(), user: user.name.split(' ')[0], role: user.role, text: newComment, time: 'Just now' }]);
-    setNewComment('');
-  };
+  const isAdmin = profile?.role === 'Super Admin' || profile?.role === 'Admin' || profile?.role === 'Event Coordinator';
 
   return (
     <div className="evaluate-container animate-fade-in">
-      <div className="projects-header">
-        <h1 className="gradient-text">Evaluate Submissions</h1>
-        <p>Review designs, add annotations, and provide feedback.</p>
+      <div className="projects-header flex-between">
+        <div>
+          <h1 className="gradient-text">Evaluate & Revisions</h1>
+          <p>Public revisions for transparency and feedback.</p>
+        </div>
+        <select 
+          className="glass-input" 
+          style={{ width: '300px' }}
+          value={selectedProject?.id || ''}
+          onChange={e => setSelectedProject(projects.find(p => p.id === e.target.value))}
+        >
+          {projects.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}
+          {projects.length === 0 && <option value="">No projects available</option>}
+        </select>
       </div>
 
-      <div className="evaluate-grid grid-cols-2">
-        
-        {/* Left Column: Image & Canvas */}
-        <div className="evaluation-area">
-          {user?.role === 'member' && (
+      {!selectedProject ? (
+        <div className="glass-card flex-center">Select a project to view revisions.</div>
+      ) : (
+        <div className="evaluate-grid grid-cols-2">
+          
+          {/* Left Column: Image & Canvas */}
+          <div className="evaluation-area">
             <div className="upload-section glass-panel">
               <input type="file" id="file-upload" className="hidden" accept="image/*" onChange={handleImageUpload} disabled={isUploading} />
               <label htmlFor="file-upload" className="upload-label" style={{ opacity: isUploading ? 0.5 : 1 }}>
                 {isUploading ? <Loader2 className="spin" size={32} /> : <Upload size={32} />}
-                <span>{isUploading ? 'Uploading to Drive...' : 'Click to upload new design revision'}</span>
+                <span>{isUploading ? 'Processing...' : 'Upload new design revision'}</span>
               </label>
             </div>
-          )}
 
-          {uploadedImage && (
-            <div className="annotation-section">
-              <h3>Design Preview {driveFileId && <span className="badge badge-success" style={{fontSize: '0.7rem'}}>Drive Synced</span>}</h3>
-              <EvaluationCanvas imageUrl={uploadedImage} ref={canvasRef} />
-              {user?.role === 'admin' && (
-                <button className="btn btn-primary mt-2" style={{width: '100%'}} onClick={handleSaveAnnotations} disabled={isUploading}>
-                  {isUploading ? <Loader2 className="spin" size={18} /> : <Save size={18} />} 
-                  {isUploading ? 'Saving to Drive...' : 'Save Annotations'}
-                </button>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Right Column: Comments & Revisions */}
-        <div className="feedback-area glass-card">
-          <div className="feedback-header">
-            <h3><MessageSquare size={20} /> Revisions & Comments</h3>
-          </div>
-          
-          <div className="comments-list">
-            {comments.map(comment => (
-              <div key={comment.id} className={`comment-bubble ${comment.role === 'admin' ? 'admin' : 'member'}`}>
-                <div className="comment-meta">
-                  <span className="comment-author">{comment.user} <span className="comment-role badge">{comment.role}</span></span>
-                  <span className="comment-time">{comment.time}</span>
-                </div>
-                <p className="comment-text">{comment.text}</p>
+            {uploadedImage ? (
+              <div className="annotation-section mt-2">
+                <h3>Design Canvas Preview</h3>
+                <EvaluationCanvas imageUrl={uploadedImage} ref={canvasRef} />
+                {isAdmin && (
+                  <button className="btn btn-primary mt-2" style={{width: '100%'}} onClick={handleSaveAnnotations} disabled={isUploading}>
+                    {isUploading ? <Loader2 className="spin" size={18} /> : <Save size={18} />} 
+                    {isUploading ? 'Saving...' : 'Save Annotations'}
+                  </button>
+                )}
               </div>
-            ))}
+            ) : (
+              <div className="glass-card mt-2 flex-center" style={{ height: '400px', color: 'var(--text-secondary)' }}>
+                No images uploaded for this project yet.
+              </div>
+            )}
           </div>
 
-          <div className="comment-input-area">
-            <textarea 
-              className="glass-input" 
-              placeholder="Type your feedback here..." 
-              value={newComment}
-              onChange={(e) => setNewComment(e.target.value)}
-              rows="3"
-            />
-            <button className="btn btn-primary send-btn" onClick={handleSendComment}>
-              <Send size={18} /> Send
-            </button>
+          {/* Right Column: Comments & Revisions */}
+          <div className="feedback-area glass-card">
+            <div className="feedback-header">
+              <h3><MessageSquare size={20} /> Revisions & Comments</h3>
+            </div>
+            
+            <div className="comments-list">
+              {revisions.map(rev => {
+                const author = profilesMap[rev.user_id] || { name: 'Unknown', role: 'Member' };
+                const isSystem = rev.text_content.includes('Saved annotated') || rev.text_content.includes('Uploaded a new');
+                
+                return (
+                  <div key={rev.id} className={`comment-bubble ${author.role !== 'Member' ? 'admin' : 'member'}`} style={{ opacity: isSystem ? 0.8 : 1 }}>
+                    <div className="comment-meta">
+                      <span className="comment-author">{author.name} <span className="comment-role badge">{author.role}</span></span>
+                      <span className="comment-time">{new Date(rev.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                    </div>
+                    <p className="comment-text" style={{ fontStyle: isSystem ? 'italic' : 'normal' }}>
+                      {rev.text_content}
+                    </p>
+                  </div>
+                );
+              })}
+              {revisions.length === 0 && <p style={{ color: 'var(--text-secondary)', textAlign: 'center', marginTop: '2rem' }}>No comments or revisions yet.</p>}
+            </div>
+
+            <div className="comment-input-area">
+              <textarea 
+                className="glass-input" 
+                placeholder="Type your feedback here..." 
+                value={newComment}
+                onChange={(e) => setNewComment(e.target.value)}
+                rows="3"
+              />
+              <button className="btn btn-primary send-btn" onClick={handleSendComment} disabled={!newComment.trim()}>
+                <Send size={18} /> Send
+              </button>
+            </div>
           </div>
+
         </div>
-
-      </div>
+      )}
     </div>
   );
 };

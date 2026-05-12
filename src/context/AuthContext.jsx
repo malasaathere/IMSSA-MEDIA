@@ -100,7 +100,20 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = async () => {
-    await supabase.auth.signOut();
+    try {
+      console.log("Attempting to sign out...");
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.error("Supabase signOut error:", error);
+      } else {
+        console.log("Sign out successful.");
+      }
+      // Force user to null immediately in case the listener is slow
+      setUser(null);
+      setProfile(null);
+    } catch (err) {
+      console.error("Logout exception:", err);
+    }
   };
 
   const handleGoogleSignIn = async () => {

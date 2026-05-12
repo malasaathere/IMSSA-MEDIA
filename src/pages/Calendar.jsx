@@ -1,20 +1,30 @@
-import React, { useState } from 'react';
-import { Calendar as CalendarIcon, Check, RefreshCw } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Calendar as CalendarIcon, Check, RefreshCw, AlertTriangle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { supabase } from '../services/supabaseClient';
 import { createCalendarEvent } from '../services/googleApi';
 import './Calendar.css';
 
 const CalendarPage = () => {
-  const { googleConnected } = useAuth();
+  const { profile, googleConnected } = useAuth();
+  const [projects, setProjects] = useState([]);
   const [isSyncing, setIsSyncing] = useState(false);
   const [synced, setSynced] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
-  const mockEvents = [
-    { title: 'Summer Campaign Post 1 Due', date: 'May 15, 2026', time: '10:00 AM' },
-    { title: 'Facebook Ad Banner Due', date: 'May 14, 2026', time: '2:00 PM' },
-    { title: 'Logo Animation Due', date: 'May 12, 2026', time: '5:00 PM' }
-  ];
+  const isSuperAdmin = profile?.role === 'Super Admin';
+
+  useEffect(() => {
+    fetchProjects();
+  }, []);
+
+  const fetchProjects = async () => {
+    const { data } = await supabase.from('projects').select('*').order('due_date', { ascending: true });
+    if (data) {
+      // Filter out completed projects for the calendar view
+      setProjects(data.filter(p => p.status !== 'Completed'));
+    }
+  };
 
   const handleSync = async () => {
     if (!googleConnected) {
@@ -25,16 +35,14 @@ const CalendarPage = () => {
     setIsSyncing(true);
     setErrorMsg('');
     try {
-      // Loop and sync mock events as real calendar events
-      for (const event of mockEvents) {
-        // Convert "May 15, 2026 10:00 AM" to ISO string. 
-        // This is a naive conversion for the mock data demonstration.
-        const dateString = `${event.date} ${event.time}`;
-        const startDate = new Date(dateString);
-        const endDate = new Date(startDate.getTime() + 60 * 60 * 1000); // +1 hour
+      for (const project of projects) {
+        if (!project.due_date) continue;
+        
+        const startDate = new Date(project.due_date);
+        const endDate = new Date(startDate.getTime() + 60 * 60 * 1000); // +1 hour duration
         
         await createCalendarEvent({
-          title: `Evaluvate Deadline: ${event.title}`,
+          title: `[Evaluvate] ${project.title}`,
           startDateTime: startDate.toISOString(),
           endDateTime: endDate.toISOString()
         });
@@ -51,17 +59,19 @@ const CalendarPage = () => {
     <div className="calendar-container animate-fade-in">
       <div className="projects-header flex-between">
         <div>
-          <h1 className="gradient-text">Google Calendar Sync</h1>
-          <p>Sync all project deadlines and events to your personal Google Calendar.</p>
+          <h1 className="gradient-text">Project Calendar</h1>
+          <p>Track all upcoming project deadlines and events.</p>
         </div>
-        <button 
-          className={`btn ${synced ? 'btn-success' : 'btn-primary'}`} 
-          onClick={handleSync}
-          disabled={isSyncing || synced}
-        >
-          {isSyncing ? <RefreshCw className="spin" size={18} /> : (synced ? <Check size={18} /> : <CalendarIcon size={18} />)}
-          {isSyncing ? 'Syncing...' : (synced ? 'Synced' : 'Sync Now')}
-        </button>
+        {isSuperAdmin && (
+          <button 
+            className={`btn ${synced ? 'btn-success' : 'btn-primary'}`} 
+            onClick={handleSync}
+            disabled={isSyncing || synced}
+          >
+            {isSyncing ? <RefreshCw className="spin" size={18} /> : (synced ? <Check size={18} /> : <CalendarIcon size={18} />)}
+            {isSyncing ? 'Syncing...' : (synced ? 'Google Sync' : 'Google Sync')}
+          </button>
+        )}
       </div>
 
       {errorMsg && (
@@ -70,29 +80,42 @@ const CalendarPage = () => {
         </div>
       )}
 
+      {!isSuperAdmin && (
+        <div style={{ padding: '1rem', background: 'rgba(6, 182, 212, 0.1)', color: 'var(--accent-primary)', border: '1px solid rgba(6, 182, 212, 0.2)', borderRadius: 'var(--border-radius-sm)', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <AlertTriangle size={18} />
+          Note: Google Calendar synchronization is managed by the Super Admin.
+        </div>
+      )}
+
       <div className="glass-card panel mt-2">
-        <h3>Upcoming Deadlines to Sync</h3>
-        <p className="subtitle">These items will be pushed to your connected calendar.</p>
+        <h3>Upcoming Deadlines</h3>
+        <p className="subtitle">All active tasks in the system.</p>
         
         <div className="sync-list mt-2">
-          {mockEvents.map((event, idx) => (
-            <div key={idx} className="sync-item">
-              <div className="sync-icon">
-                <CalendarIcon size={20} className="text-primary" />
+          {projects.map((project) => {
+            const due = new Date(project.due_date);
+            const isOverdue = due < new Date();
+
+            return (
+              <div key={project.id} className="sync-item" style={{ borderLeft: isOverdue ? '4px solid var(--accent-danger)' : '4px solid var(--accent-info)' }}>
+                <div className="sync-icon">
+                  <CalendarIcon size={20} className={isOverdue ? 'text-danger' : 'text-primary'} />
+                </div>
+                <div className="sync-details">
+                  <h4>{project.title}</h4>
+                  <p>{due.toLocaleDateString()} at {due.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                </div>
+                <div className="sync-status">
+                  {isOverdue ? (
+                    <span className="badge badge-danger">Overdue</span>
+                  ) : (
+                    <span className="badge badge-info">{project.status}</span>
+                  )}
+                </div>
               </div>
-              <div className="sync-details">
-                <h4>{event.title}</h4>
-                <p>{event.date} at {event.time}</p>
-              </div>
-              <div className="sync-status">
-                {synced ? (
-                  <span className="badge badge-success"><Check size={12}/> Synced</span>
-                ) : (
-                  <span className="badge badge-warning">Pending</span>
-                )}
-              </div>
-            </div>
-          ))}
+            );
+          })}
+          {projects.length === 0 && <p style={{ color: 'var(--text-secondary)' }}>No active deadlines!</p>}
         </div>
       </div>
     </div>
