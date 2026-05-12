@@ -5,51 +5,60 @@ import { useAuth } from '../context/AuthContext';
 import './Sidebar.css';
 
 const Sidebar = () => {
-  const { user } = useAuth();
+  const { profile, logout } = useAuth();
 
-  const navItems = [
-    { name: 'Dashboard', path: '/', icon: LayoutDashboard },
-    { name: 'Projects', path: '/projects', icon: FolderKanban },
-    { name: 'Evaluate', path: '/evaluate', icon: ImagePlus, roles: ['admin'] },
-    { name: 'Calendar', path: '/calendar', icon: Calendar },
-    { name: 'Settings', path: '/settings', icon: Settings },
-  ];
+  const isAdmin = profile?.role === 'Super Admin' || profile?.role === 'Admin' || profile?.role === 'Event Coordinator';
 
   return (
     <aside className="sidebar glass-panel">
-      <div className="sidebar-brand">
-        <div className="logo-placeholder"></div>
-        <h2 className="gradient-text">Evaluvate</h2>
+      <div className="sidebar-logo">
+        <div className="logo-icon"></div>
+        <h2>Evaluvate</h2>
       </div>
 
       <nav className="sidebar-nav">
-        {navItems.map((item) => {
-          // Hide items restricted by role
-          if (item.roles && !item.roles.includes(user?.role)) return null;
-
-          return (
-            <NavLink
-              key={item.name}
-              to={item.path}
-              className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
-            >
-              <item.icon size={20} />
-              <span>{item.name}</span>
-            </NavLink>
-          );
-        })}
+        <NavLink to="/" className={({isActive}) => isActive ? "nav-item active" : "nav-item"}>
+          <LayoutDashboard size={20} />
+          <span>Dashboard</span>
+        </NavLink>
+        <NavLink to="/projects" className={({isActive}) => isActive ? "nav-item active" : "nav-item"}>
+          <CheckSquare size={20} />
+          <span>Projects</span>
+        </NavLink>
+        <NavLink to="/evaluate" className={({isActive}) => isActive ? "nav-item active" : "nav-item"}>
+          <ImageIcon size={20} />
+          <span>Evaluate</span>
+        </NavLink>
+        <NavLink to="/calendar" className={({isActive}) => isActive ? "nav-item active" : "nav-item"}>
+          <CalendarIcon size={20} />
+          <span>Calendar</span>
+        </NavLink>
+        {isAdmin && (
+          <NavLink to="/users" className={({isActive}) => isActive ? "nav-item active" : "nav-item"}>
+            <Users size={20} />
+            <span>Users</span>
+          </NavLink>
+        )}
       </nav>
 
       <div className="sidebar-footer">
-        <div className="user-info">
-          <div className="avatar">{user?.name?.charAt(0)}</div>
-          <div className="user-details">
-            <span className="user-name">{user?.name}</span>
-            <span className={`badge badge-${user?.role === 'admin' ? 'info' : user?.role === 'member' ? 'success' : 'warning'} role-badge`}>
-              {user?.role}
-            </span>
+        <div className="user-profile">
+          <div className="avatar"></div>
+          <div className="user-info">
+            <p className="user-name">{profile?.name || 'User'}</p>
+            <p className="user-role">{profile?.role || 'Member'}</p>
           </div>
         </div>
+        
+        <NavLink to="/settings" className="nav-item">
+          <SettingsIcon size={20} />
+          <span>Settings</span>
+        </NavLink>
+        
+        <button onClick={logout} className="nav-item logout-btn">
+          <LogOut size={20} />
+          <span>Logout</span>
+        </button>
       </div>
     </aside>
   );
