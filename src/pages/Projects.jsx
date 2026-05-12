@@ -103,8 +103,32 @@ const Projects = () => {
     }
   };
 
+  const isValidDateRules = (dateString) => {
+    if (!dateString) return false;
+    const parts = dateString.split('T')[0].split('-');
+    const year = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10);
+    const day = parseInt(parts[2], 10);
+
+    const daysInMonth = [0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+    
+    // Leap year check
+    if ((year % 4 === 0 && year % 100 !== 0) || (year % 400 === 0)) {
+      daysInMonth[2] = 29;
+    }
+
+    return day > 0 && day <= daysInMonth[month];
+  };
+
   const handleCreateProject = async (e) => {
     e.preventDefault();
+    
+    // Strict Date Validation Check
+    if (!isValidDateRules(newProject.due_date)) {
+      alert("Invalid date selected. Please ensure the day matches the correct number of days for the selected month (e.g. max 28/29 for Feb, 30 for Apr/Jun/Sep/Nov, 31 for others).");
+      return;
+    }
+
     const { data, error } = await supabase.from('projects').insert([{
       ...newProject,
       event_id: activeEventId

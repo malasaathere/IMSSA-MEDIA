@@ -187,3 +187,20 @@
 .send-btn {
   align-self: flex-end;
 }
+
+/* Mobile Responsiveness */
+@media (max-width: 768px) {
+  .evaluate-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+  
+  .feedback-area {
+    min-height: 500px;
+  }
+  
+  .stage-wrapper {
+    height: 300px !important;
+  }
+}

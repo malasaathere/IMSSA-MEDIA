@@ -115,3 +115,20 @@
   color: var(--accent-success);
   border: 1px solid rgba(16, 185, 129, 0.2);
 }
+
+/* Mobile Responsiveness */
+@media (max-width: 768px) {
+  .login-container {
+    padding: 1rem;
+  }
+  
+  .login-box {
+    padding: 1.5rem;
+    width: 100%;
+    max-width: 100%;
+  }
+  
+  .login-header h1 {
+    font-size: 1.75rem;
+  }
+}

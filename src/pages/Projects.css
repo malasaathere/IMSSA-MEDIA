@@ -173,3 +173,23 @@
   background: var(--bg-color);
   padding: 2rem;
 }
+
+/* Mobile Responsiveness */
+@media (max-width: 768px) {
+  .kanban-board {
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    padding-bottom: 1rem;
+    gap: 1rem;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  .kanban-column {
+    min-width: 85vw;
+    scroll-snap-align: start;
+    flex: 0 0 auto;
+    min-height: 400px;
+  }
+}
