@@ -9,6 +9,7 @@ import CalendarPage from './pages/Calendar';
 import Settings from './pages/Settings';
 import Login from './pages/Login';
 import UserManagement from './pages/UserManagement';
+import Communication from './pages/Communication';
 
 const AppContent = () => {
   const { user, loading } = useAuth();
@@ -29,6 +30,7 @@ const AppContent = () => {
           <Route path="projects" element={<Projects />} />
           <Route path="evaluate" element={<Evaluate />} />
           <Route path="calendar" element={<CalendarPage />} />
+          <Route path="chat" element={<Communication />} />
           <Route path="users" element={<UserManagement />} />
           <Route path="settings" element={<Settings />} />
         </Route>

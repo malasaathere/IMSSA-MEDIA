@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { CheckCircle, Clock, AlertCircle, Users } from 'lucide-react';
+import { supabase } from '../services/supabaseClient';
+import { CheckCircle, Clock, AlertCircle, Users, Award, TrendingUp } from 'lucide-react';
 import './Dashboard.css';
 
 const StatCard = ({ title, value, icon: Icon, colorClass }) => (
@@ -16,37 +17,74 @@ const StatCard = ({ title, value, icon: Icon, colorClass }) => (
 );
 
 const Dashboard = () => {
-  const { user } = useAuth();
+  const { profile } = useAuth();
+  
+  const [projects, setProjects] = useState([]);
+  const [leaderboard, setLeaderboard] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  // Mock data for UI
+  const isAdmin = profile?.role === 'Super Admin' || profile?.role === 'Admin' || profile?.role === 'Event Coordinator';
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, [profile]);
+
+  const fetchDashboardData = async () => {
+    setLoading(true);
+    
+    // Fetch Projects
+    let projQuery = supabase.from('projects').select('*');
+    if (!isAdmin && profile?.id) {
+      projQuery = projQuery.eq('assigned_to', profile.id);
+    }
+    const { data: projs } = await projQuery;
+    if (projs) setProjects(projs);
+
+    // Fetch Leaderboard
+    const { data: leaders } = await supabase
+      .from('profiles')
+      .select('id, name, username, skill_level, total_points')
+      .order('total_points', { ascending: false })
+      .limit(5);
+    if (leaders) setLeaderboard(leaders);
+
+    setLoading(false);
+  };
+
+  const activeProjects = projects.filter(p => p.status === 'Ongoing');
+  const completedProjects = projects.filter(p => p.status === 'Completed');
+  const overdueProjects = projects.filter(p => p.status === 'Overdue');
+
   const adminStats = [
-    { title: 'Active Projects', value: '12', icon: Clock, colorClass: 'text-primary' },
-    { title: 'Pending Evaluations', value: '5', icon: AlertCircle, colorClass: 'text-warning' },
-    { title: 'Completed This Week', value: '24', icon: CheckCircle, colorClass: 'text-success' },
-    { title: 'Active Members', value: '8', icon: Users, colorClass: 'text-secondary' },
+    { title: 'Total Ongoing', value: activeProjects.length, icon: Clock, colorClass: 'text-primary' },
+    { title: 'Overdue Deadlines', value: overdueProjects.length, icon: AlertCircle, colorClass: 'text-danger' },
+    { title: 'Completed', value: completedProjects.length, icon: CheckCircle, colorClass: 'text-success' },
+    { title: 'Top Performer', value: leaderboard[0]?.name || '-', icon: Award, colorClass: 'text-warning' },
   ];
 
   const memberStats = [
-    { title: 'Assigned to Me', value: '4', icon: Clock, colorClass: 'text-primary' },
-    { title: 'Needs Revision', value: '2', icon: AlertCircle, colorClass: 'text-danger' },
-    { title: 'Completed', value: '15', icon: CheckCircle, colorClass: 'text-success' },
+    { title: 'My Ongoing Tasks', value: activeProjects.length, icon: Clock, colorClass: 'text-primary' },
+    { title: 'My Overdue', value: overdueProjects.length, icon: AlertCircle, colorClass: 'text-danger' },
+    { title: 'My Completed', value: completedProjects.length, icon: CheckCircle, colorClass: 'text-success' },
+    { title: 'My Points', value: profile?.total_points || 0, icon: TrendingUp, colorClass: 'text-warning' },
   ];
 
-  const stats = user?.role === 'admin' ? adminStats : (user?.role === 'member' ? memberStats : adminStats);
+  const stats = isAdmin ? adminStats : memberStats;
+
+  // Sort upcoming deadlines
+  const upcomingDeadlines = [...activeProjects].sort((a, b) => new Date(a.due_date) - new Date(b.due_date)).slice(0, 4);
+
+  if (loading) {
+    return <div className="dashboard-container flex-center" style={{ height: '80vh' }}>Loading Dashboard...</div>;
+  }
 
   return (
     <div className="dashboard-container animate-fade-in">
       <div className="dashboard-header flex-between">
         <div>
-          <h1 className="gradient-text">Welcome back, {user?.name.split(' ')[0]}!</h1>
+          <h1 className="gradient-text">Welcome back, {profile?.name?.split(' ')[0] || 'User'}!</h1>
           <p>Here's what's happening with your projects today.</p>
         </div>
-        {user?.role === 'member' && (
-          <button className="btn btn-primary">Upload New Work</button>
-        )}
-        {user?.role === 'admin' && (
-          <button className="btn btn-primary">Create Event</button>
-        )}
       </div>
 
       <div className={`grid-cols-${stats.length > 3 ? '4' : '3'} stats-grid mt-2`}>
@@ -57,49 +95,54 @@ const Dashboard = () => {
 
       <div className="dashboard-main grid-cols-2 mt-2">
         <div className="glass-card panel">
-          <h3>Recent Activity</h3>
+          <h3>Gamification Leaderboard</h3>
+          <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>Top 5 designers by total points earned.</p>
           <div className="activity-list">
-            <div className="activity-item">
-              <div className="activity-dot bg-primary"></div>
-              <div className="activity-content">
-                <p><strong>Sarah</strong> uploaded a revision for <em>Summer Campaign Post 1</em></p>
-                <span className="time">2 hours ago</span>
+            {leaderboard.map((user, index) => (
+              <div className="activity-item" key={user.id} style={{ alignItems: 'center', padding: '0.75rem 0' }}>
+                <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: index === 0 ? 'var(--accent-warning)' : 'var(--text-secondary)', width: '30px' }}>
+                  #{index + 1}
+                </div>
+                <div className="activity-content" style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
+                  <div>
+                    <p style={{ fontWeight: 600 }}>{user.name}</p>
+                    <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                      Level: <strong style={{ color: 'var(--accent-info)' }}>{user.skill_level}</strong>
+                    </span>
+                  </div>
+                  <div className="flex-center" style={{ gap: '0.5rem', fontWeight: 'bold', color: 'var(--accent-warning)' }}>
+                    <Award size={16} /> {user.total_points}
+                  </div>
+                </div>
               </div>
-            </div>
-            <div className="activity-item">
-              <div className="activity-dot bg-warning"></div>
-              <div className="activity-content">
-                <p><strong>Admin</strong> requested changes on <em>Logo Concepts</em></p>
-                <span className="time">4 hours ago</span>
-              </div>
-            </div>
-            <div className="activity-item">
-              <div className="activity-dot bg-success"></div>
-              <div className="activity-content">
-                <p><em>Spring Event Series</em> was marked as completed.</p>
-                <span className="time">Yesterday</span>
-              </div>
-            </div>
+            ))}
+            {leaderboard.length === 0 && <p style={{ color: 'var(--text-secondary)' }}>No points awarded yet!</p>}
           </div>
         </div>
 
         <div className="glass-card panel">
-          <h3>{user?.role === 'member' ? 'My Upcoming Deadlines' : 'Urgent Deadlines'}</h3>
-          <div className="deadline-list">
-            <div className="deadline-item">
-              <div className="deadline-info">
-                <h4>Summer Campaign Post 1</h4>
-                <p>Assigned to: {user?.role === 'member' ? 'Me' : 'Sarah'}</p>
-              </div>
-              <div className="badge badge-danger">Today</div>
-            </div>
-            <div className="deadline-item">
-              <div className="deadline-info">
-                <h4>Logo Concepts</h4>
-                <p>Assigned to: {user?.role === 'member' ? 'Me' : 'John'}</p>
-              </div>
-              <div className="badge badge-warning">Tomorrow</div>
-            </div>
+          <h3>{isAdmin ? 'Upcoming Deadlines (All)' : 'My Upcoming Deadlines'}</h3>
+          <div className="deadline-list" style={{ marginTop: '1rem' }}>
+            {upcomingDeadlines.map(project => {
+              const due = new Date(project.due_date);
+              const isToday = due.toDateString() === new Date().toDateString();
+              const isOverdue = due < new Date() && !isToday;
+
+              return (
+                <div className="deadline-item" key={project.id} style={{ padding: '1rem', background: 'rgba(0,0,0,0.2)', borderRadius: '8px', marginBottom: '0.5rem' }}>
+                  <div className="deadline-info">
+                    <h4 style={{ margin: 0 }}>{project.title}</h4>
+                    <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                      Category: {project.category}
+                    </p>
+                  </div>
+                  <div className={`badge badge-${isOverdue ? 'danger' : isToday ? 'warning' : 'info'}`}>
+                    {isOverdue ? 'Overdue' : isToday ? 'Today' : due.toLocaleDateString()}
+                  </div>
+                </div>
+              )
+            })}
+            {upcomingDeadlines.length === 0 && <p style={{ color: 'var(--text-secondary)' }}>No upcoming deadlines!</p>}
           </div>
         </div>
       </div>

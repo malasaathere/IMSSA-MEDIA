@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, FolderKanban, ImagePlus, Calendar, Settings } from 'lucide-react';
+import { LayoutDashboard, CheckSquare, Image as ImageIcon, Calendar as CalendarIcon, Settings as SettingsIcon, LogOut, Users, MessageCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import './Sidebar.css';
 
@@ -28,6 +28,10 @@ const Sidebar = () => {
         <NavLink to="/evaluate" className={({isActive}) => isActive ? "nav-item active" : "nav-item"}>
           <ImageIcon size={20} />
           <span>Evaluate</span>
+        </NavLink>
+        <NavLink to="/chat" className={({isActive}) => isActive ? "nav-item active" : "nav-item"}>
+          <MessageCircle size={20} />
+          <span>Chat</span>
         </NavLink>
         <NavLink to="/calendar" className={({isActive}) => isActive ? "nav-item active" : "nav-item"}>
           <CalendarIcon size={20} />
