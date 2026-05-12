@@ -1,10 +1,14 @@
 import React, { useState } from 'react';
 import { Calendar as CalendarIcon, Check, RefreshCw } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { createCalendarEvent } from '../services/googleApi';
 import './Calendar.css';
 
 const CalendarPage = () => {
+  const { googleConnected } = useAuth();
   const [isSyncing, setIsSyncing] = useState(false);
   const [synced, setSynced] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
 
   const mockEvents = [
     { title: 'Summer Campaign Post 1 Due', date: 'May 15, 2026', time: '10:00 AM' },
@@ -12,13 +16,35 @@ const CalendarPage = () => {
     { title: 'Logo Animation Due', date: 'May 12, 2026', time: '5:00 PM' }
   ];
 
-  const handleSync = () => {
+  const handleSync = async () => {
+    if (!googleConnected) {
+      setErrorMsg("Please connect your Google Account in Settings first.");
+      return;
+    }
+    
     setIsSyncing(true);
-    // Mock API call to Google Calendar API
-    setTimeout(() => {
-      setIsSyncing(false);
+    setErrorMsg('');
+    try {
+      // Loop and sync mock events as real calendar events
+      for (const event of mockEvents) {
+        // Convert "May 15, 2026 10:00 AM" to ISO string. 
+        // This is a naive conversion for the mock data demonstration.
+        const dateString = `${event.date} ${event.time}`;
+        const startDate = new Date(dateString);
+        const endDate = new Date(startDate.getTime() + 60 * 60 * 1000); // +1 hour
+        
+        await createCalendarEvent({
+          title: `Evaluvate Deadline: ${event.title}`,
+          startDateTime: startDate.toISOString(),
+          endDateTime: endDate.toISOString()
+        });
+      }
       setSynced(true);
-    }, 2000);
+    } catch (err) {
+      console.error("Calendar Sync Failed:", err);
+      setErrorMsg("Sync failed. Check console for details.");
+    }
+    setIsSyncing(false);
   };
 
   return (
@@ -37,6 +63,12 @@ const CalendarPage = () => {
           {isSyncing ? 'Syncing...' : (synced ? 'Synced' : 'Sync Now')}
         </button>
       </div>
+
+      {errorMsg && (
+        <div style={{ padding: '1rem', background: 'rgba(239, 68, 68, 0.1)', color: 'var(--accent-danger)', border: '1px solid rgba(239, 68, 68, 0.2)', borderRadius: 'var(--border-radius-sm)', marginBottom: '1rem' }}>
+          {errorMsg}
+        </div>
+      )}
 
       <div className="glass-card panel mt-2">
         <h3>Upcoming Deadlines to Sync</h3>

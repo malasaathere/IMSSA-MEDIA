@@ -86,3 +86,34 @@ export const downloadFromDriveAsBlobUrl = async (fileId) => {
   const blob = await response.blob();
   return URL.createObjectURL(blob);
 };
+
+export const createCalendarEvent = async (eventDetails) => {
+  if (!getGoogleAuthStatus()) throw new Error("Not signed in to Google.");
+  
+  const event = {
+    'summary': eventDetails.title,
+    'description': eventDetails.description || 'Project Deadline synced from Evaluvate',
+    'start': {
+      'dateTime': eventDetails.startDateTime,
+      'timeZone': Intl.DateTimeFormat().resolvedOptions().timeZone,
+    },
+    'end': {
+      'dateTime': eventDetails.endDateTime,
+      'timeZone': Intl.DateTimeFormat().resolvedOptions().timeZone,
+    },
+    'reminders': {
+      'useDefault': false,
+      'overrides': [
+        {'method': 'email', 'minutes': 24 * 60},
+        {'method': 'popup', 'minutes': 60},
+      ],
+    },
+  };
+
+  const response = await gapi.client.calendar.events.insert({
+    'calendarId': 'primary',
+    'resource': event,
+  });
+  
+  return response.result;
+};
