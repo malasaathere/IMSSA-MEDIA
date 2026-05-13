@@ -83,7 +83,8 @@ export const AuthProvider = ({ children }) => {
       email,
       password,
       options: {
-        data: { username, name, whatsapp_number: whatsapp }
+        data: { username, name, whatsapp_number: whatsapp },
+        emailRedirectTo: window.location.origin
       }
     });
 
