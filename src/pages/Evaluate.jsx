@@ -199,7 +199,6 @@ const Evaluate = () => {
       }]);
 
       setUploadedImage(urlData.publicUrl);
-      await fetchRevisions(selectedProject.id);
     } catch (err) {
       console.error('Upload failed', err);
       alert('Upload failed: ' + err.message);
@@ -230,7 +229,6 @@ const Evaluate = () => {
         text_content: 'Saved annotated feedback.',
         image_url: urlData.publicUrl
       }]);
-      await fetchRevisions(selectedProject.id);
     } catch (err) {
       console.error('Failed to save annotations', err);
       alert('Failed to save annotation: ' + err.message);
