@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
@@ -18,38 +18,38 @@ const AppContent = () => {
     return <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Loading...</div>;
   }
 
-  if (!user) {
-    return <Login />;
-  }
-
   return (
-    <Router>
-      <Routes>
-        <Route path="/" element={<Layout />}>
-          <Route index element={<Dashboard />} />
-          <Route path="projects" element={<Projects />} />
-          <Route path="evaluate" element={<Evaluate />} />
-          <Route path="calendar" element={<CalendarPage />} />
-          <Route path="chat" element={<Communication />} />
-          <Route path="users" element={<UserManagement />} />
-          <Route path="settings" element={<Settings />} />
-          <Route path="*" element={
-            <div style={{ height: '80vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-              <h1 className="gradient-text" style={{ fontSize: '4rem' }}>404</h1>
-              <p style={{ color: 'var(--text-secondary)' }}>The page you are looking for does not exist.</p>
-            </div>
-          } />
-        </Route>
-      </Routes>
-    </Router>
+    <Routes>
+      {/* Public route */}
+      <Route path="/login" element={!user ? <Login /> : <Navigate to="/" replace />} />
+
+      {/* Protected routes */}
+      <Route path="/" element={user ? <Layout /> : <Navigate to="/login" replace />}>
+        <Route index element={<Dashboard />} />
+        <Route path="projects" element={<Projects />} />
+        <Route path="evaluate" element={<Evaluate />} />
+        <Route path="calendar" element={<CalendarPage />} />
+        <Route path="chat" element={<Communication />} />
+        <Route path="users" element={<UserManagement />} />
+        <Route path="settings" element={<Settings />} />
+        <Route path="*" element={
+          <div style={{ height: '80vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+            <h1 className="gradient-text" style={{ fontSize: '4rem' }}>404</h1>
+            <p style={{ color: 'var(--text-secondary)' }}>The page you are looking for does not exist.</p>
+          </div>
+        } />
+      </Route>
+    </Routes>
   );
 };
 
 function App() {
   return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
+    <Router>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
+    </Router>
   );
 }
 
