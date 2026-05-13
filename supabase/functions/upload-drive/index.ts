@@ -48,7 +48,12 @@ serve(async (req) => {
 
     const tokenData = await tokenResponse.json()
     if (!tokenResponse.ok) {
-      throw new Error(`Failed to refresh token: ${JSON.stringify(tokenData)}`)
+      const errMsg = `Token refresh failed: ${tokenData.error} - ${tokenData.error_description}`
+      console.error(errMsg)
+      return new Response(JSON.stringify({ error: errMsg }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 500,
+      })
     }
     const accessToken = tokenData.access_token
 

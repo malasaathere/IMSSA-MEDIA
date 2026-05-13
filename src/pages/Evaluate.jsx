@@ -186,8 +186,11 @@ const Evaluate = () => {
         body: { fileName, mimeType: file.type, fileBase64: base64Data }
       });
 
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
+      // Show the actual error from the function body, not the generic Supabase error
+      if (error || data?.error) {
+        const msg = data?.error || error?.message || 'Unknown error';
+        throw new Error(msg);
+      }
 
       const driveUrl = data?.id
         ? `https://drive.google.com/uc?export=view&id=${data.id}`
@@ -203,7 +206,7 @@ const Evaluate = () => {
       setUploadedImage(driveUrl);
     } catch (err) {
       console.error('Upload failed', err);
-      alert('Upload to Google Drive failed: ' + err.message);
+      alert('Google Drive Error: ' + err.message);
     }
     setIsUploading(false);
   };
