@@ -54,7 +54,12 @@ const Login = () => {
       }
     } catch (err) {
       console.error(err);
-      setErrorMsg(err.message || 'An error occurred.');
+      if (err.message && err.message.toLowerCase().includes('already registered')) {
+        setErrorMsg('This email is already registered but might be unverified. Please check your email or resend the OTP.');
+        setViewState('otp'); // Switch to OTP view so they can use the Resend button
+      } else {
+        setErrorMsg(err.message || 'An error occurred.');
+      }
     }
     setIsLoading(false);
   };
