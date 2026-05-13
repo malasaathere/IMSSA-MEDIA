@@ -3,15 +3,14 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-// Use sessionStorage so the session is automatically cleared when the
-// browser tab or window is closed — prevents stale session crashes on reopen
-// and ensures users are always logged out when they close the app.
+// localStorage keeps session alive on page refresh.
+// A beforeunload listener in AuthContext handles tab-close logout.
 export const supabase = supabaseUrl && supabaseAnonKey && supabaseUrl !== 'YOUR_SUPABASE_URL_HERE'
   ? createClient(supabaseUrl, supabaseAnonKey, {
       auth: {
         persistSession: true,
         storageKey: 'imssa-jwt-token',
-        storage: window.sessionStorage, // sessionStorage clears on tab/browser close
+        storage: window.localStorage,
         autoRefreshToken: true,
       }
     })

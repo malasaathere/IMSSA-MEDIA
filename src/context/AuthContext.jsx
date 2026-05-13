@@ -31,7 +31,16 @@ export const AuthProvider = ({ children }) => {
       setLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    // Sign out when the browser tab is closed (not on refresh)
+    const handleTabClose = () => {
+      supabase.auth.signOut();
+    };
+    window.addEventListener('beforeunload', handleTabClose);
+
+    return () => {
+      subscription.unsubscribe();
+      window.removeEventListener('beforeunload', handleTabClose);
+    };
   }, []);
 
   const fetchProfile = async (userId) => {
