@@ -4,11 +4,12 @@ import { Camera, Mail, Lock, User, Phone, CheckCircle, Key } from 'lucide-react'
 import './Login.css';
 
 const Login = () => {
-  const { login, register, verifyOtp } = useAuth();
+  const { login, register, verifyOtp, resendOtp } = useAuth();
   const [viewState, setViewState] = useState('login'); // 'login', 'register', 'otp'
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+  const [resendCount, setResendCount] = useState(0);
 
   // Form states
   const [username, setUsername] = useState('');
@@ -54,6 +55,26 @@ const Login = () => {
     } catch (err) {
       console.error(err);
       setErrorMsg(err.message || 'An error occurred.');
+    }
+    setIsLoading(false);
+  };
+
+  const handleResendOtp = async () => {
+    setErrorMsg('');
+    setSuccessMsg('');
+    if (resendCount >= 3) {
+      setErrorMsg("Maximum resend limit reached. Please try registering again later.");
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      await resendOtp(email);
+      setResendCount(prev => prev + 1);
+      setSuccessMsg(`OTP resent! (${resendCount + 1}/3 attempts used)`);
+    } catch (err) {
+      console.error(err);
+      setErrorMsg(err.message || 'Failed to resend OTP.');
     }
     setIsLoading(false);
   };
@@ -198,19 +219,34 @@ const Login = () => {
           <p>
             {viewState === 'register' ? 'Already have an account?' : 
              viewState === 'otp' ? 'Did not receive code?' : "Don't have an account?"}
-            <button 
-              type="button" 
-              className="link-btn" 
-              onClick={() => {
-                setErrorMsg('');
-                setSuccessMsg('');
-                setViewState(viewState === 'login' ? 'register' : 'login');
-              }}
-            >
-              {viewState === 'register' ? 'Log In' : 
-               viewState === 'otp' ? 'Back to Login' : 'Register'}
-            </button>
+            {viewState === 'otp' ? (
+              <button 
+                type="button" 
+                className="link-btn" 
+                onClick={handleResendOtp}
+                disabled={isLoading || resendCount >= 3}
+              >
+                Resend OTP
+              </button>
+            ) : (
+              <button 
+                type="button" 
+                className="link-btn" 
+                onClick={() => {
+                  setErrorMsg('');
+                  setSuccessMsg('');
+                  setViewState(viewState === 'login' ? 'register' : 'login');
+                }}
+              >
+                {viewState === 'register' ? 'Log In' : 'Register'}
+              </button>
+            )}
           </p>
+          {viewState === 'otp' && (
+            <p style={{ marginTop: '0.5rem', fontSize: '0.85rem' }}>
+              Mistyped email? <button type="button" className="link-btn" style={{ fontSize: '0.85rem', marginLeft: '0.2rem' }} onClick={() => { setViewState('register'); setResendCount(0); }}>Back to Register</button>
+            </p>
+          )}
         </div>
       </div>
     </div>

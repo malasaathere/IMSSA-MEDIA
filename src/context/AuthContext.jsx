@@ -91,6 +91,17 @@ export const AuthProvider = ({ children }) => {
     if (error) throw error;
   };
 
+  const resendOtp = async (email) => {
+    const { error } = await supabase.auth.resend({
+      type: 'signup',
+      email,
+      options: {
+        emailRedirectTo: window.location.origin
+      }
+    });
+    if (error) throw error;
+  };
+
   const logout = async () => {
     try {
       console.log("Attempting to sign out...");
@@ -110,7 +121,7 @@ export const AuthProvider = ({ children }) => {
 
   return (
     <AuthContext.Provider value={{ 
-      user, profile, login: loginWithUsername, register, verifyOtp: verifyOtpCode, logout, loading
+      user, profile, login: loginWithUsername, register, verifyOtp: verifyOtpCode, resendOtp, logout, loading
     }}>
       {!loading && children}
     </AuthContext.Provider>
