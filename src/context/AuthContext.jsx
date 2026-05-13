@@ -65,15 +65,6 @@ export const AuthProvider = ({ children }) => {
     if (signInError) throw signInError;
   };
 
-  const verifyOtpCode = async (email, token) => {
-    const { error } = await supabase.auth.verifyOtp({
-      email,
-      token,
-      type: 'signup'
-    });
-    if (error) throw error;
-  };
-
   const register = async (email, password, username, name, whatsapp) => {
     // Check if username is taken first
     const { data } = await supabase.from('profiles').select('id').eq('username', username).single();
@@ -88,17 +79,6 @@ export const AuthProvider = ({ children }) => {
       }
     });
 
-    if (error) throw error;
-  };
-
-  const resendOtp = async (email) => {
-    const { error } = await supabase.auth.resend({
-      type: 'signup',
-      email,
-      options: {
-        emailRedirectTo: window.location.origin
-      }
-    });
     if (error) throw error;
   };
 
@@ -121,7 +101,7 @@ export const AuthProvider = ({ children }) => {
 
   return (
     <AuthContext.Provider value={{ 
-      user, profile, login: loginWithUsername, register, verifyOtp: verifyOtpCode, resendOtp, logout, loading
+      user, profile, login: loginWithUsername, register, logout, loading
     }}>
       {!loading && children}
     </AuthContext.Provider>
