@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Camera, Mail, Lock, User, Phone, CheckCircle } from 'lucide-react';
+import { Camera, Mail, Lock, User, Phone, CheckCircle, ArrowLeft } from 'lucide-react';
 import './Login.css';
 
 const Login = () => {
-  const { login, register } = useAuth();
-  const [viewState, setViewState] = useState('login'); // 'login', 'register'
+  const { login, register, resetPassword } = useAuth();
+  const [viewState, setViewState] = useState('login'); // 'login', 'register', 'forgot'
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
@@ -16,16 +16,22 @@ const Login = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [forgotEmail, setForgotEmail] = useState('');
   const [whatsapp, setWhatsapp] = useState('+94');
 
   const handleWhatsappChange = (e) => {
     const val = e.target.value;
-    // Ensure it always starts with +94
     if (val.startsWith('+94')) {
       setWhatsapp(val);
     } else if (val === '+9' || val === '+' || val === '') {
       setWhatsapp('+94');
     }
+  };
+
+  const switchView = (view) => {
+    setErrorMsg('');
+    setSuccessMsg('');
+    setViewState(view);
   };
 
   const handleSubmit = async (e) => {
@@ -41,10 +47,12 @@ const Login = () => {
         }
         await register(email, password, username, name, whatsapp);
         setSuccessMsg("Registration successful! You can now log in.");
-        setViewState('login');
+        switchView('login');
+      } else if (viewState === 'forgot') {
+        await resetPassword(forgotEmail);
+        setSuccessMsg("Password reset email sent! Check your inbox and follow the link to set a new password.");
       } else {
         await login(username, password);
-        // App.jsx automatically unmounts this component on successful login
       }
     } catch (err) {
       console.error(err);
@@ -62,7 +70,9 @@ const Login = () => {
           </div>
           <h1 className="gradient-text">IMSSA Media</h1>
           <p>
-            {viewState === 'register' ? 'Create your account' : 'Welcome back, please log in'}
+            {viewState === 'register' && 'Create your account'}
+            {viewState === 'login' && 'Welcome back, please log in'}
+            {viewState === 'forgot' && 'Reset your password'}
           </p>
         </div>
 
@@ -79,6 +89,23 @@ const Login = () => {
         )}
 
         <form onSubmit={handleSubmit} className="login-form">
+
+          {/* --- FORGOT PASSWORD VIEW --- */}
+          {viewState === 'forgot' && (
+            <div className="input-group animate-fade-in">
+              <Mail size={20} className="input-icon" />
+              <input
+                type="email"
+                className="glass-input"
+                placeholder="Enter your registered email"
+                value={forgotEmail}
+                onChange={(e) => setForgotEmail(e.target.value)}
+                required
+              />
+            </div>
+          )}
+
+          {/* --- REGISTER VIEW EXTRA FIELDS --- */}
           {viewState === 'register' && (
             <>
               <div className="input-group animate-fade-in">
@@ -120,30 +147,34 @@ const Login = () => {
             </>
           )}
 
-          <div className="input-group animate-fade-in">
-            <User size={20} className="input-icon" />
-            <input 
-              type="text" 
-              className="glass-input" 
-              placeholder="Username" 
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              required 
-            />
-          </div>
-
-          <div className="input-group animate-fade-in">
-            <Lock size={20} className="input-icon" />
-            <input 
-              type="password" 
-              className="glass-input" 
-              placeholder="Password (min 6 chars)" 
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required 
-              minLength={6}
-            />
-          </div>
+          {/* --- LOGIN & REGISTER SHARED FIELDS --- */}
+          {viewState !== 'forgot' && (
+            <>
+              <div className="input-group animate-fade-in">
+                <User size={20} className="input-icon" />
+                <input 
+                  type="text" 
+                  className="glass-input" 
+                  placeholder="Username" 
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  required 
+                />
+              </div>
+              <div className="input-group animate-fade-in">
+                <Lock size={20} className="input-icon" />
+                <input 
+                  type="password" 
+                  className="glass-input" 
+                  placeholder="Password (min 6 chars)" 
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required 
+                  minLength={6}
+                />
+              </div>
+            </>
+          )}
 
           {viewState === 'register' && (
             <div className="input-group animate-fade-in">
@@ -161,25 +192,45 @@ const Login = () => {
           )}
 
           <button type="submit" className="btn btn-primary login-btn" disabled={isLoading}>
-            {isLoading ? 'Processing...' : (viewState === 'register' ? 'Register' : 'Log In')}
+            {isLoading ? 'Processing...' : (
+              viewState === 'register' ? 'Register' :
+              viewState === 'forgot' ? 'Send Reset Link' : 'Log In'
+            )}
           </button>
         </form>
 
         <div className="login-footer">
-          <p>
-            {viewState === 'register' ? 'Already have an account?' : "Don't have an account?"}
-            <button 
-              type="button" 
-              className="link-btn" 
-              onClick={() => {
-                setErrorMsg('');
-                setSuccessMsg('');
-                setViewState(viewState === 'login' ? 'register' : 'login');
-              }}
-            >
-              {viewState === 'register' ? 'Log In' : 'Register'}
-            </button>
-          </p>
+          {/* Forgot Password link — shown only on login view */}
+          {viewState === 'login' && (
+            <p>
+              <button type="button" className="link-btn" onClick={() => switchView('forgot')}>
+                Forgot your password?
+              </button>
+            </p>
+          )}
+
+          {/* Toggle between Login and Register */}
+          {viewState !== 'forgot' && (
+            <p>
+              {viewState === 'register' ? 'Already have an account?' : "Don't have an account?"}
+              <button 
+                type="button" 
+                className="link-btn" 
+                onClick={() => switchView(viewState === 'login' ? 'register' : 'login')}
+              >
+                {viewState === 'register' ? 'Log In' : 'Register'}
+              </button>
+            </p>
+          )}
+
+          {/* Back to Login from Forgot view */}
+          {viewState === 'forgot' && (
+            <p>
+              <button type="button" className="link-btn" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }} onClick={() => switchView('login')}>
+                <ArrowLeft size={14} /> Back to Login
+              </button>
+            </p>
+          )}
         </div>
       </div>
     </div>

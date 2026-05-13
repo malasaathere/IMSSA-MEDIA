@@ -8,6 +8,7 @@ import Evaluate from './pages/Evaluate';
 import CalendarPage from './pages/Calendar';
 import Settings from './pages/Settings';
 import Login from './pages/Login';
+import ResetPassword from './pages/ResetPassword';
 import UserManagement from './pages/UserManagement';
 import Communication from './pages/Communication';
 
@@ -20,8 +21,9 @@ const AppContent = () => {
 
   return (
     <Routes>
-      {/* Public route */}
+      {/* Public routes */}
       <Route path="/login" element={!user ? <Login /> : <Navigate to="/" replace />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
 
       {/* Protected routes */}
       <Route path="/" element={user ? <Layout /> : <Navigate to="/login" replace />}>

@@ -65,6 +65,13 @@ export const AuthProvider = ({ children }) => {
     if (signInError) throw signInError;
   };
 
+  const resetPassword = async (email) => {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`
+    });
+    if (error) throw error;
+  };
+
   const register = async (email, password, username, name, whatsapp) => {
     // Check if username is taken first
     const { data } = await supabase.from('profiles').select('id').eq('username', username).single();
@@ -101,7 +108,7 @@ export const AuthProvider = ({ children }) => {
 
   return (
     <AuthContext.Provider value={{ 
-      user, profile, login: loginWithUsername, register, logout, loading
+      user, profile, login: loginWithUsername, register, resetPassword, logout, loading
     }}>
       {!loading && children}
     </AuthContext.Provider>
