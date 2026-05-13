@@ -179,61 +179,60 @@ const Evaluate = () => {
 
     setIsUploading(true);
     try {
-      const fileName = `revisions/${selectedProject.id}/${Date.now()}_${file.name}`;
+      const base64Data = await fileToBase64(file);
+      const fileName = `Upload_${Date.now()}_${file.name}`;
 
-      // Upload directly to Supabase Storage
-      const { error: uploadError } = await supabase.storage
-        .from('project-files')
-        .upload(fileName, file, { upsert: true });
+      const { data, error } = await supabase.functions.invoke('upload-drive', {
+        body: { fileName, mimeType: file.type, fileBase64: base64Data }
+      });
 
-      if (uploadError) throw uploadError;
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
 
-      // Get the public URL
-      const { data: urlData } = supabase.storage
-        .from('project-files')
-        .getPublicUrl(fileName);
-
-      const publicUrl = urlData.publicUrl;
+      const driveUrl = data?.id
+        ? `https://drive.google.com/uc?export=view&id=${data.id}`
+        : data?.url || 'https://drive.google.com/';
 
       await supabase.from('project_revisions').insert([{
         project_id: selectedProject.id,
         user_id: profile.id,
-        text_content: 'Uploaded a new design revision.',
-        image_url: publicUrl
+        text_content: 'Uploaded a new design revision to Google Drive.',
+        image_url: driveUrl
       }]);
 
-      setUploadedImage(publicUrl);
+      setUploadedImage(driveUrl);
     } catch (err) {
       console.error('Upload failed', err);
-      alert('Upload failed: ' + err.message);
+      alert('Upload to Google Drive failed: ' + err.message);
     }
     setIsUploading(false);
   };
 
   const handleSaveAnnotations = async () => {
     if (!canvasRef.current || !selectedProject) return;
-    
     setIsUploading(true);
     try {
       const blob = await canvasRef.current.exportImage();
-      const fileName = `revisions/${selectedProject.id}/annotation_${Date.now()}.png`;
+      const fileToUpload = new File([blob], `Annotation_${Date.now()}.png`, { type: 'image/png' });
+      const base64Data = await fileToBase64(fileToUpload);
+      const fileName = `Annotation_${Date.now()}.png`;
 
-      // Upload annotation directly to Supabase Storage
-      const { error: uploadError } = await supabase.storage
-        .from('project-files')
-        .upload(fileName, blob, { contentType: 'image/png', upsert: true });
+      const { data, error } = await supabase.functions.invoke('upload-drive', {
+        body: { fileName, mimeType: 'image/png', fileBase64: base64Data }
+      });
 
-      if (uploadError) throw uploadError;
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
 
-      const { data: urlData } = supabase.storage
-        .from('project-files')
-        .getPublicUrl(fileName);
+      const driveUrl = data?.id
+        ? `https://drive.google.com/uc?export=view&id=${data.id}`
+        : data?.url || 'https://drive.google.com/';
 
       await supabase.from('project_revisions').insert([{
         project_id: selectedProject.id,
         user_id: profile.id,
-        text_content: 'Saved annotated feedback.',
-        image_url: urlData.publicUrl
+        text_content: 'Saved annotated feedback to Google Drive.',
+        image_url: driveUrl
       }]);
     } catch (err) {
       console.error('Failed to save annotations', err);
