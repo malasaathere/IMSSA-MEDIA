@@ -1,5 +1,9 @@
 {
   "compilerOptions": {
-    "lib": ["deno.window"]
+    "lib": ["deno.window"],
+    "strict": false
+  },
+  "imports": {
+    "https://esm.sh/@supabase/functions-js/src/edge-runtime.d.ts": "https://esm.sh/@supabase/functions-js/src/edge-runtime.d.ts"
   }
 }

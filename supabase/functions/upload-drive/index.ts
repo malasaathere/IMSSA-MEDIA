@@ -1,3 +1,5 @@
+// @ts-nocheck
+/// <reference types="https://esm.sh/@supabase/functions-js/src/edge-runtime.d.ts" />
 // Supabase Edge Function — Upload file to Google Drive
 // Uses modern Deno.serve() instead of deprecated deno.land/std import
 
