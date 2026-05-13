@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { supabase } from '../services/supabaseClient';
+import api from '../services/apiClient';
 import { Plus, MoreHorizontal, Calendar, MessageSquare, Clock, User, CheckCircle, AlertTriangle, Shield } from 'lucide-react';
 import './Projects.css';
+
 
 const ProjectCard = ({ project, profiles, onStatusChange, isAssignee, isAdmin }) => {
   const assignee = profiles.find(p => p.id === project.assigned_to);
@@ -74,32 +75,28 @@ const Projects = () => {
   }, []);
 
   const fetchData = async () => {
-    // Fetch profiles
-    const { data: profs } = await supabase.from('profiles').select('id, name, role');
-    if (profs) setProfiles(profs);
-
-    // Fetch events
-    const { data: evts } = await supabase.from('events').select('*').order('created_at', { ascending: false });
-    if (evts) {
-      setEvents(evts);
-      if (evts.length > 0 && !activeEventId) setActiveEventId(evts[0].id);
-    }
-
-    // Fetch projects
-    const { data: projs } = await supabase.from('projects').select('*');
-    if (projs) setProjects(projs);
+    const [usersRes, eventsRes, projectsRes] = await Promise.all([
+      api.get('/users'),
+      api.get('/events'),
+      api.get('/projects')
+    ]);
+    setProfiles(usersRes.data || []);
+    const evts = eventsRes.data || [];
+    setEvents(evts);
+    if (evts.length > 0 && !activeEventId) setActiveEventId(evts[0].id);
+    setProjects(projectsRes.data || []);
   };
 
   const handleCreateEvent = async (e) => {
     e.preventDefault();
-    const { data, error } = await supabase.from('events').insert([{ name: newEventName, coordinator_id: profile.id }]).select();
-    if (!error && data) {
-      setEvents([data[0], ...events]);
-      setActiveEventId(data[0].id);
+    try {
+      const { data } = await api.post('/events', { name: newEventName, coordinator_id: profile.id });
+      setEvents([data, ...events]);
+      setActiveEventId(data.id);
       setShowEventModal(false);
       setNewEventName('');
-    } else {
-      alert("Error creating event: " + error?.message);
+    } catch (err) {
+      alert('Error creating event: ' + (err.response?.data?.error || err.message));
     }
   };
 
@@ -122,31 +119,26 @@ const Projects = () => {
 
   const handleCreateProject = async (e) => {
     e.preventDefault();
-    
-    // Strict Date Validation Check
     if (!isValidDateRules(newProject.due_date)) {
-      alert("Invalid date selected. Please ensure the day matches the correct number of days for the selected month (e.g. max 28/29 for Feb, 30 for Apr/Jun/Sep/Nov, 31 for others).");
+      alert('Invalid date. Please check the day is correct for the selected month.');
       return;
     }
-
-    const { data, error } = await supabase.from('projects').insert([{
-      ...newProject,
-      event_id: activeEventId
-    }]).select();
-
-    if (!error && data) {
-      setProjects([data[0], ...projects]);
+    try {
+      const { data } = await api.post('/projects', { ...newProject, event_id: activeEventId });
+      setProjects([data, ...projects]);
       setShowProjectModal(false);
       setNewProject({ title: '', category: 'Video', assigned_to: '', monitoring_admin_id: '', due_date: '', points_awarded: 10 });
-    } else {
-      alert("Error creating project: " + error?.message);
+    } catch (err) {
+      alert('Error creating project: ' + (err.response?.data?.error || err.message));
     }
   };
 
   const handleStatusChange = async (projectId, newStatus) => {
-    const { error } = await supabase.from('projects').update({ status: newStatus }).eq('id', projectId);
-    if (!error) {
+    try {
+      await api.patch(`/projects/${projectId}`, { status: newStatus });
       setProjects(projects.map(p => p.id === projectId ? { ...p, status: newStatus } : p));
+    } catch (err) {
+      console.error('Status update failed:', err);
     }
   };
 

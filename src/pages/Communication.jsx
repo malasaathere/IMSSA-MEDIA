@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../services/supabaseClient';
+import api from '../services/apiClient';
 import { Send, MessageCircle } from 'lucide-react';
 import './Communication.css';
 
@@ -12,9 +13,9 @@ const Communication = () => {
   const messagesEndRef = useRef(null);
 
   useEffect(() => {
-    fetchMessagesAndProfiles();
+    fetchMessages();
 
-    // Subscribe to new messages
+    // Keep Supabase real-time subscription for live updates
     const channel = supabase
       .channel('public:global_messages')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'global_messages' }, (payload) => {
@@ -22,43 +23,38 @@ const Communication = () => {
       })
       .subscribe();
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => { supabase.removeChannel(channel); };
   }, []);
 
   useEffect(() => {
-    // Auto-scroll to bottom
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const fetchMessagesAndProfiles = async () => {
-    // Fetch all profiles to map IDs to Names
-    const { data: profs } = await supabase.from('profiles').select('id, name, role');
-    if (profs) {
+  const fetchMessages = async () => {
+    try {
+      const [msgsRes, usersRes] = await Promise.all([
+        api.get('/messages'),
+        api.get('/users')
+      ]);
+      const msgs = msgsRes.data || [];
+      const users = usersRes.data || [];
       const profMap = {};
-      profs.forEach(p => profMap[p.id] = p);
+      users.forEach(p => profMap[p.id] = p);
       setProfiles(profMap);
+      setMessages(msgs);
+    } catch (err) {
+      console.error('Failed to load messages:', err);
     }
-
-    // Fetch message history
-    const { data: msgs } = await supabase.from('global_messages').select('*').order('created_at', { ascending: true });
-    if (msgs) setMessages(msgs);
   };
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!newMessage.trim()) return;
-
-    const { error } = await supabase.from('global_messages').insert([{
-      user_id: profile.id,
-      message: newMessage.trim()
-    }]);
-
-    if (!error) {
+    try {
+      await api.post('/messages', { message: newMessage.trim() });
       setNewMessage('');
-    } else {
-      console.error("Error sending message:", error);
+    } catch (err) {
+      console.error('Error sending message:', err);
     }
   };
 
@@ -79,7 +75,7 @@ const Communication = () => {
           ) : (
             messages.map((msg, index) => {
               const isMe = msg.user_id === profile?.id;
-              const sender = profiles[msg.user_id] || { name: 'Unknown User', role: 'Member' };
+              const sender = profiles[msg.user_id] || msg.sender || { name: 'Unknown User', role: 'Member' };
               const showHeader = index === 0 || messages[index - 1].user_id !== msg.user_id;
 
               return (
@@ -103,10 +99,10 @@ const Communication = () => {
         </div>
 
         <form onSubmit={handleSendMessage} className="chat-input-area">
-          <input 
-            type="text" 
-            className="glass-input" 
-            placeholder="Type your message..." 
+          <input
+            type="text"
+            className="glass-input"
+            placeholder="Type your message..."
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
           />

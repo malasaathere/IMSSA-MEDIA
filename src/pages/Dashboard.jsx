@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../services/supabaseClient';
+import api from '../services/apiClient';
 import { CheckCircle, Clock, AlertCircle, Users, Award, TrendingUp } from 'lucide-react';
 import './Dashboard.css';
 
@@ -18,7 +19,6 @@ const StatCard = ({ title, value, icon: Icon, colorClass }) => (
 
 const Dashboard = () => {
   const { profile } = useAuth();
-  
   const [projects, setProjects] = useState([]);
   const [leaderboard, setLeaderboard] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -31,23 +31,25 @@ const Dashboard = () => {
 
   const fetchDashboardData = async () => {
     setLoading(true);
-    
-    // Fetch Projects
-    let projQuery = supabase.from('projects').select('*');
-    if (!isAdmin && profile?.id) {
-      projQuery = projQuery.eq('assigned_to', profile.id);
+    try {
+      // Fetch projects via Node.js API
+      const projRes = await api.get('/projects');
+      let projs = projRes.data || [];
+      if (!isAdmin && profile?.id) {
+        projs = projs.filter(p => p.assigned_to === profile.id);
+      }
+      setProjects(projs);
+
+      // Fetch leaderboard directly from Supabase (read-only, no business logic)
+      const { data: leaders } = await supabase
+        .from('profiles')
+        .select('id, name, username, skill_level, total_points')
+        .order('total_points', { ascending: false })
+        .limit(5);
+      if (leaders) setLeaderboard(leaders);
+    } catch (err) {
+      console.error('Dashboard fetch error:', err);
     }
-    const { data: projs } = await projQuery;
-    if (projs) setProjects(projs);
-
-    // Fetch Leaderboard
-    const { data: leaders } = await supabase
-      .from('profiles')
-      .select('id, name, username, skill_level, total_points')
-      .order('total_points', { ascending: false })
-      .limit(5);
-    if (leaders) setLeaderboard(leaders);
-
     setLoading(false);
   };
 
@@ -70,8 +72,6 @@ const Dashboard = () => {
   ];
 
   const stats = isAdmin ? adminStats : memberStats;
-
-  // Sort upcoming deadlines
   const upcomingDeadlines = [...activeProjects].sort((a, b) => new Date(a.due_date) - new Date(b.due_date)).slice(0, 4);
 
   if (loading) {
@@ -127,20 +127,17 @@ const Dashboard = () => {
               const due = new Date(project.due_date);
               const isToday = due.toDateString() === new Date().toDateString();
               const isOverdue = due < new Date() && !isToday;
-
               return (
                 <div className="deadline-item" key={project.id} style={{ padding: '1rem', background: 'rgba(0,0,0,0.2)', borderRadius: '8px', marginBottom: '0.5rem' }}>
                   <div className="deadline-info">
                     <h4 style={{ margin: 0 }}>{project.title}</h4>
-                    <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                      Category: {project.category}
-                    </p>
+                    <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Category: {project.category}</p>
                   </div>
                   <div className={`badge badge-${isOverdue ? 'danger' : isToday ? 'warning' : 'info'}`}>
                     {isOverdue ? 'Overdue' : isToday ? 'Today' : due.toLocaleDateString()}
                   </div>
                 </div>
-              )
+              );
             })}
             {upcomingDeadlines.length === 0 && <p style={{ color: 'var(--text-secondary)' }}>No upcoming deadlines!</p>}
           </div>

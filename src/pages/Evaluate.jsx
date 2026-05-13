@@ -3,7 +3,7 @@ import { Stage, Layer, Line, Image as KonvaImage } from 'react-konva';
 import useImage from 'use-image';
 import { Upload, PenTool, Eraser, Save, MessageSquare, Send, Loader2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { supabase } from '../services/supabaseClient';
+import api from '../services/apiClient';
 import './Evaluate.css';
 
 const EvaluationCanvas = forwardRef(({ imageUrl }, ref) => {
@@ -123,44 +123,46 @@ const Evaluate = () => {
   }, [selectedProject]);
 
   const fetchInitialData = async () => {
-    // Get profiles for mapping
-    const { data: profs } = await supabase.from('profiles').select('id, name, role');
-    if (profs) {
+    try {
+      const [usersRes, projectsRes] = await Promise.all([
+        api.get('/users'),
+        api.get('/projects')
+      ]);
+      const users = usersRes.data || [];
       const map = {};
-      profs.forEach(p => map[p.id] = p);
+      users.forEach(p => map[p.id] = p);
       setProfilesMap(map);
-    }
-
-    // Get projects
-    const { data: projs } = await supabase.from('projects').select('*').order('created_at', { ascending: false });
-    if (projs) {
+      const projs = projectsRes.data || [];
       setProjects(projs);
       if (projs.length > 0) setSelectedProject(projs[0]);
+    } catch (err) {
+      console.error('Evaluate init error:', err);
     }
   };
 
   const fetchRevisions = async (projectId) => {
-    const { data } = await supabase.from('project_revisions').select('*').eq('project_id', projectId).order('created_at', { ascending: true });
-    if (data) {
-      setRevisions(data);
-      // Auto load the latest image to the canvas if it exists
-      const latestImage = [...data].reverse().find(r => r.image_url);
-      if (latestImage) {
-        setUploadedImage(latestImage.image_url);
-      } else {
-        setUploadedImage(null);
-      }
+    try {
+      const { data } = await api.get(`/revisions?projectId=${projectId}`);
+      const revs = data || [];
+      setRevisions(revs);
+      const latestImage = [...revs].reverse().find(r => r.image_url);
+      setUploadedImage(latestImage ? latestImage.image_url : null);
+    } catch (err) {
+      console.error('Fetch revisions error:', err);
     }
   };
 
   const handleSendComment = async () => {
     if (!newComment.trim() || !selectedProject) return;
-    const { error } = await supabase.from('project_revisions').insert([{
-      project_id: selectedProject.id,
-      user_id: profile.id,
-      text_content: newComment.trim()
-    }]);
-    if (!error) setNewComment('');
+    try {
+      await api.post('/revisions', {
+        project_id: selectedProject.id,
+        text_content: newComment.trim()
+      });
+      setNewComment('');
+    } catch (err) {
+      console.error('Comment error:', err);
+    }
   };
 
   // Helper to convert File/Blob to Base64
@@ -176,31 +178,20 @@ const Evaluate = () => {
   const handleImageUpload = async (e) => {
     const file = e.target.files[0];
     if (!file || !selectedProject) return;
-
     setIsUploading(true);
     try {
       const fileName = `revisions/${selectedProject.id}/${Date.now()}_${file.name}`;
-
       const { error: uploadError } = await supabase.storage
-        .from('project-files')
-        .upload(fileName, file, { upsert: true });
-
+        .from('project-files').upload(fileName, file, { upsert: true });
       if (uploadError) throw uploadError;
-
-      const { data: urlData } = supabase.storage
-        .from('project-files')
-        .getPublicUrl(fileName);
-
-      await supabase.from('project_revisions').insert([{
+      const { data: urlData } = supabase.storage.from('project-files').getPublicUrl(fileName);
+      await api.post('/revisions', {
         project_id: selectedProject.id,
-        user_id: profile.id,
         text_content: 'Uploaded a new design revision.',
         image_url: urlData.publicUrl
-      }]);
-
+      });
       setUploadedImage(urlData.publicUrl);
     } catch (err) {
-      console.error('Upload failed', err);
       alert('Upload failed: ' + err.message);
     }
     setIsUploading(false);

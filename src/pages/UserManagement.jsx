@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../services/supabaseClient';
+import api from '../services/apiClient';
 import { useAuth } from '../context/AuthContext';
 import { Shield, ShieldAlert, Award, UserCheck, TrendingUp, Search } from 'lucide-react';
 import './UserManagement.css';
@@ -13,53 +13,38 @@ const UserManagement = () => {
   const isSuperAdmin = profile?.role === 'Super Admin';
   const isAdmin = isSuperAdmin || profile?.role === 'Admin' || profile?.role === 'Event Coordinator';
 
-  useEffect(() => {
-    fetchUsers();
-  }, []);
+  useEffect(() => { fetchUsers(); }, []);
 
   const fetchUsers = async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .order('created_at', { ascending: false });
-      
-    if (error) console.error("Error fetching users:", error);
-    else setUsers(data || []);
+    try {
+      const { data } = await api.get('/users');
+      setUsers(data || []);
+    } catch (err) {
+      console.error('Error fetching users:', err);
+    }
     setLoading(false);
   };
 
   const handleRoleChange = async (userId, newRole) => {
-    if (!isSuperAdmin) {
-      alert("Only Super Admins can change user roles.");
-      return;
-    }
-    const { error } = await supabase
-      .from('profiles')
-      .update({ role: newRole })
-      .eq('id', userId);
-      
-    if (error) {
-      alert("Failed to update role: " + error.message);
-    } else {
+    if (!isSuperAdmin) { alert('Only Super Admins can change user roles.'); return; }
+    try {
+      await api.patch(`/users/${userId}/role`, { role: newRole });
       fetchUsers();
+    } catch (err) {
+      alert('Failed to update role: ' + (err.response?.data?.error || err.message));
     }
   };
 
   const handleSkillChange = async (userId, newSkill) => {
-    if (!isAdmin) {
-      alert("Only Admins can change user skill levels.");
-      return;
-    }
-    const { error } = await supabase
-      .from('profiles')
-      .update({ skill_level: newSkill })
-      .eq('id', userId);
-      
-    if (error) {
-      alert("Failed to update skill level: " + error.message);
-    } else {
+    if (!isAdmin) { alert('Only Admins can change skill levels.'); return; }
+    try {
+      // Skill level update goes through Supabase directly (no Node.js route needed)
+      const { supabase } = await import('../services/supabaseClient.js');
+      await supabase.from('profiles').update({ skill_level: newSkill }).eq('id', userId);
       fetchUsers();
+    } catch (err) {
+      alert('Failed to update skill level: ' + err.message);
     }
   };
 
@@ -75,8 +60,8 @@ const UserManagement = () => {
     );
   }
 
-  const filteredUsers = users.filter(u => 
-    u.name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+  const filteredUsers = users.filter(u =>
+    u.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     u.username?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -89,9 +74,9 @@ const UserManagement = () => {
         </div>
         <div className="search-bar glass-card">
           <Search size={18} color="var(--text-secondary)" />
-          <input 
-            type="text" 
-            placeholder="Search users..." 
+          <input
+            type="text"
+            placeholder="Search users..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             style={{ background: 'none', border: 'none', color: 'white', outline: 'none', paddingLeft: '0.5rem' }}
@@ -124,8 +109,8 @@ const UserManagement = () => {
                   <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>WA: {u.whatsapp_number}</div>
                 </td>
                 <td>
-                  <select 
-                    value={u.role} 
+                  <select
+                    value={u.role}
                     onChange={(e) => handleRoleChange(u.id, e.target.value)}
                     disabled={!isSuperAdmin || u.id === profile?.id}
                     className="role-select"
@@ -137,10 +122,10 @@ const UserManagement = () => {
                   </select>
                 </td>
                 <td>
-                  <select 
-                    value={u.skill_level} 
+                  <select
+                    value={u.skill_level}
                     onChange={(e) => handleSkillChange(u.id, e.target.value)}
-                    className={`skill-select ${u.skill_level.toLowerCase()}`}
+                    className={`skill-select ${u.skill_level?.toLowerCase()}`}
                   >
                     <option value="Beginner">Beginner</option>
                     <option value="Intermediate">Intermediate</option>
