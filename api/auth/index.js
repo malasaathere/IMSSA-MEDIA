@@ -1,10 +1,14 @@
 import supabaseAdmin from '../_supabaseAdmin.js';
 import nodemailer from 'nodemailer';
 
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: { user: process.env.GMAIL_USER, pass: process.env.GMAIL_APP_PASSWORD }
-});
+// Nodemailer is optional — only used if GMAIL_USER and GMAIL_APP_PASSWORD are set
+const getTransporter = () => {
+  if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) return null;
+  return nodemailer.createTransport({
+    service: 'gmail',
+    auth: { user: process.env.GMAIL_USER, pass: process.env.GMAIL_APP_PASSWORD }
+  });
+};
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -43,23 +47,33 @@ export default async function handler(req, res) {
     // --- FORGOT PASSWORD ---
     if (action === 'forgot-password') {
       const frontendUrl = process.env.VITE_FRONTEND_URL || 'https://imssa-media.vercel.app';
-      const { data, error } = await supabaseAdmin.auth.admin.generateLink({
-        type: 'recovery', email,
-        options: { redirectTo: `${frontendUrl}/reset-password` }
-      });
-      if (error) throw error;
+      const transporter = getTransporter();
 
-      await transporter.sendMail({
-        from: `"IMSSA Media" <${process.env.GMAIL_USER}>`,
-        to: email,
-        subject: 'Reset Your IMSSA Media Password',
-        html: `<div style="font-family:Arial,sans-serif;max-width:480px;margin:auto">
-          <h2 style="color:#06b6d4">Reset Your Password</h2>
-          <p>Click the button below to reset your IMSSA Media password.</p>
-          <a href="${data.properties.action_link}" style="display:inline-block;background:#06b6d4;color:white;padding:12px 24px;text-decoration:none;border-radius:8px;font-weight:bold;margin:16px 0">Reset My Password</a>
-          <p style="color:#888;font-size:12px">This link expires in 1 hour. If you didn't request this, ignore this email.</p>
-        </div>`
-      });
+      if (transporter) {
+        // Use Nodemailer with custom branded email
+        const { data, error } = await supabaseAdmin.auth.admin.generateLink({
+          type: 'recovery', email,
+          options: { redirectTo: `${frontendUrl}/reset-password` }
+        });
+        if (error) throw error;
+        await transporter.sendMail({
+          from: `"IMSSA Media" <${process.env.GMAIL_USER}>`,
+          to: email,
+          subject: 'Reset Your IMSSA Media Password',
+          html: `<div style="font-family:Arial,sans-serif;max-width:480px;margin:auto">
+            <h2 style="color:#06b6d4">Reset Your Password</h2>
+            <p>Click the button below to reset your IMSSA Media password.</p>
+            <a href="${data.properties.action_link}" style="display:inline-block;background:#06b6d4;color:white;padding:12px 24px;text-decoration:none;border-radius:8px;font-weight:bold;margin:16px 0">Reset My Password</a>
+            <p style="color:#888;font-size:12px">This link expires in 1 hour.</p>
+          </div>`
+        });
+      } else {
+        // Fall back to Supabase's built-in reset email
+        const { error } = await supabaseAdmin.auth.resetPasswordForEmail(email, {
+          redirectTo: `${frontendUrl}/reset-password`
+        });
+        if (error) throw error;
+      }
       return res.json({ message: 'Password reset email sent! Check your inbox.' });
     }
 
