@@ -1,13 +1,13 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+// Supabase Edge Function — Upload file to Google Drive
+// Uses modern Deno.serve() instead of deprecated deno.land/std import
 
-// Define CORS headers
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-serve(async (req) => {
-  // Handle CORS Preflight request
+Deno.serve(async (req) => {
+  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
@@ -16,22 +16,22 @@ serve(async (req) => {
     const { fileName, mimeType, fileBase64 } = await req.json()
 
     if (!fileName || !fileBase64) {
-      return new Response(JSON.stringify({ error: 'Missing required parameters.' }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 400,
-      })
+      return new Response(
+        JSON.stringify({ error: 'Missing required parameters: fileName and fileBase64 are required.' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      )
     }
 
-    // 1. Get Google API Credentials from Supabase Secrets
+    // 1. Read Google API Credentials from Supabase Secrets
     const clientId = Deno.env.get('GOOGLE_CLIENT_ID')
     const clientSecret = Deno.env.get('GOOGLE_CLIENT_SECRET')
     const refreshToken = Deno.env.get('GOOGLE_REFRESH_TOKEN')
 
     if (!clientId || !clientSecret || !refreshToken) {
-      return new Response(JSON.stringify({ error: 'Google Credentials not set in Supabase Vault.' }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500,
-      })
+      return new Response(
+        JSON.stringify({ error: 'Google credentials not configured in Supabase secrets.' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      )
     }
 
     // 2. Exchange Refresh Token for a fresh Access Token
@@ -48,58 +48,68 @@ serve(async (req) => {
 
     const tokenData = await tokenResponse.json()
     if (!tokenResponse.ok) {
-      const errMsg = `Token refresh failed: ${tokenData.error} - ${tokenData.error_description}`
+      const errMsg = `Token refresh failed: ${tokenData.error} — ${tokenData.error_description}`
       console.error(errMsg)
-      return new Response(JSON.stringify({ error: errMsg }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500,
-      })
+      return new Response(
+        JSON.stringify({ error: errMsg }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      )
     }
+
     const accessToken = tokenData.access_token
 
-    // 3. Upload File to Google Drive
-    // Convert base64 back to binary array
-    const byteCharacters = atob(fileBase64);
-    const byteNumbers = new Array(byteCharacters.length);
+    // 3. Convert base64 to binary
+    const byteCharacters = atob(fileBase64)
+    const byteArray = new Uint8Array(byteCharacters.length)
     for (let i = 0; i < byteCharacters.length; i++) {
-      byteNumbers[i] = byteCharacters.charCodeAt(i);
+      byteArray[i] = byteCharacters.charCodeAt(i)
     }
-    const byteArray = new Uint8Array(byteNumbers);
-    const blob = new Blob([byteArray], { type: mimeType });
+    const fileBlob = new Blob([byteArray], { type: mimeType })
 
-    // Build Multipart form data for Drive API
-    const metadata = {
-      name: fileName,
-    };
+    // 4. Upload to Google Drive using multipart upload
+    const formData = new FormData()
+    formData.append(
+      'metadata',
+      new Blob([JSON.stringify({ name: fileName })], { type: 'application/json' })
+    )
+    formData.append('file', fileBlob)
 
-    const formData = new FormData();
-    formData.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
-    formData.append('file', blob);
-
-    const uploadResponse = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${accessToken}`
-      },
-      body: formData,
-    });
+    const uploadResponse = await fetch(
+      'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink',
+      {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${accessToken}` },
+        body: formData,
+      }
+    )
 
     const uploadData = await uploadResponse.json()
     if (!uploadResponse.ok) {
-      throw new Error(`Google Drive Upload Failed: ${JSON.stringify(uploadData)}`)
+      throw new Error(`Google Drive upload failed: ${JSON.stringify(uploadData)}`)
     }
 
-    // 4. Return the Google Drive link to the React app
-    return new Response(JSON.stringify({ url: uploadData.webViewLink, id: uploadData.id }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 200,
+    // 5. Make the file publicly viewable
+    await fetch(`https://www.googleapis.com/drive/v3/files/${uploadData.id}/permissions`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ role: 'reader', type: 'anyone' }),
     })
 
+    const publicUrl = `https://drive.google.com/uc?export=view&id=${uploadData.id}`
+
+    return new Response(
+      JSON.stringify({ url: publicUrl, id: uploadData.id, webViewLink: uploadData.webViewLink }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+    )
+
   } catch (error) {
-    console.error(error.message)
-    return new Response(JSON.stringify({ error: error.message }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 500,
-    })
+    console.error('Edge Function error:', error.message)
+    return new Response(
+      JSON.stringify({ error: error.message }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+    )
   }
 })
