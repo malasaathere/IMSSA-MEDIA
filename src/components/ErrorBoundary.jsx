@@ -1,38 +1,35 @@
-import React from 'react';
+import React from "react";
 
 class ErrorBoundary extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = { hasError: false, error: null, errorInfo: null };
-  }
+  state = { hasError: false };
 
-  static getDerivedStateFromError(error) {
+  static getDerivedStateFromError() {
     return { hasError: true };
   }
 
-  componentDidCatch(error, errorInfo) {
-    console.error("React Crash:", error, errorInfo);
-    this.setState({ error, errorInfo });
-    // Attempt to clear potentially corrupted state
-    localStorage.removeItem('imssa-jwt-token');
-    localStorage.removeItem('imssa-access-token');
-    localStorage.removeItem('imssa-refresh-token');
+  componentDidCatch(error, info) {
+    console.error("App crashed:", error, info);
   }
 
   render() {
     if (this.state.hasError) {
       return (
-        <div style={{ padding: '2rem', color: 'red', backgroundColor: '#fee' }}>
-          <h1>Something went wrong.</h1>
-          <p>The application crashed. Local storage has been automatically cleared to try to fix this issue. Please refresh the page.</p>
-          <button onClick={() => window.location.href = '/login'} style={{ padding: '0.5rem 1rem', marginTop: '1rem', cursor: 'pointer' }}>
-            Go to Login
+        <div style={{ padding: "20px", textAlign: "center" }}>
+          <h2>Something went wrong.</h2>
+          <button
+            onClick={() => {
+              localStorage.clear();
+              sessionStorage.clear();
+              window.location.reload();
+            }}
+            style={{
+              padding: "10px 20px",
+              cursor: "pointer",
+              marginTop: "10px"
+            }}
+          >
+            Click here to reset
           </button>
-          <pre style={{ marginTop: '1rem', whiteSpace: 'pre-wrap', fontSize: '0.8rem' }}>
-            {this.state.error?.toString()}
-            <br />
-            {this.state.errorInfo?.componentStack}
-          </pre>
         </div>
       );
     }
