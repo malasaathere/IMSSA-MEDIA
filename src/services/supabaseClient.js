@@ -3,14 +3,15 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-// Create a single supabase client for interacting with your database
-// Enforcing Local Storage for JWTs to ensure no cookies are used for authentication
+// Use sessionStorage so the session is automatically cleared when the
+// browser tab or window is closed — prevents stale session crashes on reopen
+// and ensures users are always logged out when they close the app.
 export const supabase = supabaseUrl && supabaseAnonKey && supabaseUrl !== 'YOUR_SUPABASE_URL_HERE'
   ? createClient(supabaseUrl, supabaseAnonKey, {
       auth: {
         persistSession: true,
-        storageKey: 'imssa-jwt-token', // Explicitly naming the JWT token
-        storage: window.localStorage, // Force local storage instead of cookies
+        storageKey: 'imssa-jwt-token',
+        storage: window.sessionStorage, // sessionStorage clears on tab/browser close
         autoRefreshToken: true,
       }
     })
