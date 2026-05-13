@@ -11,15 +11,32 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     const fetchSessionAndProfile = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      setUser(session?.user ?? null);
-      if (session?.user) await fetchProfile(session.user.id);
-      setLoading(false);
+      try {
+        const { data, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          // Bad session — clear it instead of crashing
+          await supabase.auth.signOut();
+          setUser(null);
+          setProfile(null);
+        } else {
+          setUser(data.session?.user ?? null);
+          if (data.session?.user) {
+            await fetchProfile(data.session.user.id);
+          }
+        }
+      } catch (err) {
+        console.error('Session fetch crashed:', err);
+        await supabase.auth.signOut();
+        setUser(null);
+      } finally {
+        setLoading(false);
+      }
     };
 
     fetchSessionAndProfile();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    const { data: listener } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setUser(session?.user ?? null);
       if (session?.user) await fetchProfile(session.user.id);
       else setProfile(null);
@@ -31,7 +48,7 @@ export const AuthProvider = ({ children }) => {
     window.addEventListener('beforeunload', handleTabClose);
 
     return () => {
-      subscription.unsubscribe();
+      if (listener?.subscription) listener.subscription.unsubscribe();
       window.removeEventListener('beforeunload', handleTabClose);
     };
   }, []);
