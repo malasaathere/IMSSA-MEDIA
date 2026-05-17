@@ -125,7 +125,7 @@ const Evaluate = () => {
   const fetchInitialData = async () => {
     try {
       const [usersRes, projectsRes] = await Promise.all([
-        api.get('/users'),
+        api.get('/users?public=true'),
         api.get('/projects')
       ]);
       const users = usersRes.data || [];
@@ -180,17 +180,21 @@ const Evaluate = () => {
     if (!file || !selectedProject) return;
     setIsUploading(true);
     try {
+      const base64 = await fileToBase64(file);
       const fileName = `revisions/${selectedProject.id}/${Date.now()}_${file.name}`;
-      const { error: uploadError } = await supabase.storage
-        .from('project-files').upload(fileName, file, { upsert: true });
-      if (uploadError) throw uploadError;
-      const { data: urlData } = supabase.storage.from('project-files').getPublicUrl(fileName);
+      
+      const { data: uploadRes } = await api.post('/upload', {
+        fileName,
+        contentType: file.type,
+        base64
+      });
+
       await api.post('/revisions', {
         project_id: selectedProject.id,
         text_content: 'Uploaded a new design revision.',
-        image_url: urlData.publicUrl
+        image_url: uploadRes.publicUrl
       });
-      setUploadedImage(urlData.publicUrl);
+      setUploadedImage(uploadRes.publicUrl);
     } catch (err) {
       alert('Upload failed: ' + err.message);
     }
@@ -202,24 +206,20 @@ const Evaluate = () => {
     setIsUploading(true);
     try {
       const blob = await canvasRef.current.exportImage();
+      const base64 = await fileToBase64(blob);
       const fileName = `revisions/${selectedProject.id}/annotation_${Date.now()}.png`;
 
-      const { error: uploadError } = await supabase.storage
-        .from('project-files')
-        .upload(fileName, blob, { contentType: 'image/png', upsert: true });
+      const { data: uploadRes } = await api.post('/upload', {
+        fileName,
+        contentType: 'image/png',
+        base64
+      });
 
-      if (uploadError) throw uploadError;
-
-      const { data: urlData } = supabase.storage
-        .from('project-files')
-        .getPublicUrl(fileName);
-
-      await supabase.from('project_revisions').insert([{
+      await api.post('/revisions', {
         project_id: selectedProject.id,
-        user_id: profile.id,
         text_content: 'Saved annotated feedback.',
-        image_url: urlData.publicUrl
-      }]);
+        image_url: uploadRes.publicUrl
+      });
     } catch (err) {
       console.error('Failed to save annotations', err);
       alert('Failed to save annotation: ' + err.message);

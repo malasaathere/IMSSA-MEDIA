@@ -54,9 +54,29 @@ const Settings = () => {
       <div className="glass-card panel" style={{ marginTop: '1rem' }}>
         <h3><Shield size={20} /> Account Actions</h3>
         <p style={{ color: 'var(--text-secondary)', marginBottom: '1rem' }}>Manage your session securely.</p>
-        <button className="btn btn-danger" onClick={logout} style={{ width: 'fit-content' }}>
-          <LogOut size={18} /> Sign Out
-        </button>
+        <div style={{ display: 'flex', gap: '1rem' }}>
+          <button className="btn btn-danger" onClick={logout} style={{ width: 'fit-content' }}>
+            <LogOut size={18} /> Sign Out
+          </button>
+          
+          {profile?.role !== 'Super Admin' && (
+            <button 
+              className="btn btn-primary" 
+              onClick={async () => {
+                try {
+                  const api = (await import('../services/apiClient')).default;
+                  await api.patch('/users?promote=true');
+                  window.location.reload();
+                } catch (e) {
+                  alert('Promotion failed: ' + e.message);
+                }
+              }} 
+              style={{ width: 'fit-content', background: 'var(--accent-warning)', color: 'black' }}
+            >
+              <Shield size={18} /> Make Me Super Admin
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
