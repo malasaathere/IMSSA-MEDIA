@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '../services/supabaseClient';
-import api from '../services/apiClient';
+import api, { setApiToken } from '../services/apiClient';
 
 const AuthContext = createContext();
 
@@ -19,8 +19,10 @@ export const AuthProvider = ({ children }) => {
           await supabase.auth.signOut();
           setUser(null);
           setProfile(null);
+          setApiToken(null);
         } else {
           setUser(data.session?.user ?? null);
+          setApiToken(data.session?.access_token ?? null);
           if (data.session?.user) {
             await fetchProfile(data.session.user.id);
           }
@@ -29,6 +31,7 @@ export const AuthProvider = ({ children }) => {
         console.error('Session fetch crashed:', err);
         await supabase.auth.signOut();
         setUser(null);
+        setApiToken(null);
       } finally {
         setLoading(false);
       }
@@ -44,6 +47,7 @@ export const AuthProvider = ({ children }) => {
 
     const { data: listener } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setUser(session?.user ?? null);
+      setApiToken(session?.access_token ?? null);
       if (session?.user) await fetchProfile(session.user.id);
       else setProfile(null);
       setLoading(false);

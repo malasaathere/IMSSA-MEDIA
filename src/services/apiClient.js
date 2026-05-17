@@ -5,11 +5,15 @@ const api = axios.create({ baseURL: '/api' });
 
 import { supabase } from './supabaseClient';
 
-// Attach JWT to every request using Supabase SDK session
-api.interceptors.request.use(async (config) => {
-  const { data } = await supabase.auth.getSession();
-  const token = data?.session?.access_token;
-  if (token) config.headers.Authorization = `Bearer ${token}`;
+let currentToken = null;
+
+export const setApiToken = (token) => {
+  currentToken = token;
+};
+
+// Attach JWT to every request using the synchronized token
+api.interceptors.request.use((config) => {
+  if (currentToken) config.headers.Authorization = `Bearer ${currentToken}`;
   return config;
 });
 

@@ -9,8 +9,19 @@ export default async function handler(req, res) {
 
   const adminRoles = ['Super Admin', 'Admin', 'Event Coordinator'];
 
-  // GET /api/users — list all (admin)
+  // GET /api/users
   if (req.method === 'GET') {
+    // Public leaderboard access
+    if (req.query.leaderboard === 'true') {
+      const { data, error } = await supabaseAdmin.from('profiles')
+        .select('id, name, username, skill_level, total_points')
+        .order('total_points', { ascending: false })
+        .limit(5);
+      if (error) return res.status(500).json({ error: error.message });
+      return res.json(data);
+    }
+
+    // Admin only list all users
     if (!adminRoles.includes(auth.profile?.role)) return res.status(403).json({ error: 'Admin only.' });
     const { data, error } = await supabaseAdmin.from('profiles').select('*').order('created_at', { ascending: false });
     if (error) return res.status(500).json({ error: error.message });

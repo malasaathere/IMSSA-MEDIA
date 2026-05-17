@@ -40,13 +40,9 @@ const Dashboard = () => {
       }
       setProjects(projs);
 
-      // Fetch leaderboard directly from Supabase (read-only, no business logic)
-      const { data: leaders } = await supabase
-        .from('profiles')
-        .select('id, name, username, skill_level, total_points')
-        .order('total_points', { ascending: false })
-        .limit(5);
-      if (leaders) setLeaderboard(leaders);
+      // Fetch leaderboard via Node.js API to avoid frozen browser Supabase clients
+      const leadRes = await api.get('/users?leaderboard=true');
+      if (leadRes.data) setLeaderboard(leadRes.data);
     } catch (err) {
       console.error('Dashboard fetch error:', err);
     }
