@@ -4,6 +4,7 @@ import useImage from 'use-image';
 import { Upload, PenTool, Eraser, Save, MessageSquare, Send, Loader2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/apiClient';
+import { supabase } from '../services/supabaseClient';
 import './Evaluate.css';
 
 const EvaluationCanvas = forwardRef(({ imageUrl }, ref) => {
