@@ -11,6 +11,11 @@ export default async function handler(req, res) {
 
   // GET /api/users
   if (req.method === 'GET') {
+    // Fetch own profile
+    if (req.query.me === 'true') {
+      return res.json(auth.profile);
+    }
+
     // Public leaderboard access
     if (req.query.leaderboard === 'true') {
       const { data, error } = await supabaseAdmin.from('profiles')

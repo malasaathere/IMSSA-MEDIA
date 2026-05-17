@@ -65,9 +65,12 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const fetchProfile = async (userId) => {
-    const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).single();
-    if (data) setProfile(data);
-    if (error) console.error('Profile fetch error:', error);
+    try {
+      const res = await api.get('/users?me=true');
+      if (res.data) setProfile(res.data);
+    } catch (err) {
+      console.error('Profile fetch error:', err);
+    }
   };
 
   // LOGIN via Node.js API → set session in Supabase client for auth tracking
