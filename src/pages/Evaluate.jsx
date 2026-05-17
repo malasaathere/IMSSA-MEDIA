@@ -4,7 +4,6 @@ import useImage from 'use-image';
 import { Upload, PenTool, Eraser, Save, MessageSquare, Send, Loader2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/apiClient';
-import { supabase } from '../services/supabaseClient';
 import './Evaluate.css';
 
 const EvaluationCanvas = forwardRef(({ imageUrl }, ref) => {
@@ -109,14 +108,10 @@ const Evaluate = () => {
   useEffect(() => {
     if (selectedProject) {
       fetchRevisions(selectedProject.id);
-      
-      const sub = supabase
-        .channel('public:project_revisions')
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'project_revisions', filter: `project_id=eq.${selectedProject.id}` }, (payload) => {
-          setRevisions(current => [...current, payload.new]);
-        })
-        .subscribe();
-      return () => supabase.removeChannel(sub);
+
+      // Poll for new revisions every 10 seconds instead of using unstable WebSocket
+      const interval = setInterval(() => fetchRevisions(selectedProject.id), 10000);
+      return () => clearInterval(interval);
     } else {
       setRevisions([]);
       setUploadedImage(null);
