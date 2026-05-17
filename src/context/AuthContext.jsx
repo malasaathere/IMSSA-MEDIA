@@ -34,13 +34,20 @@ export const AuthProvider = ({ children }) => {
       }
     };
 
-    fetchSessionAndProfile();
+    // Safety fallback: if Supabase hangs for any reason, force unblock after 3 seconds
+    const safetyTimeout = setTimeout(() => {
+      console.warn("AuthContext safety timeout triggered! Supabase hung.");
+      setLoading(false);
+    }, 3000);
+
+    fetchSessionAndProfile().then(() => clearTimeout(safetyTimeout));
 
     const { data: listener } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setUser(session?.user ?? null);
       if (session?.user) await fetchProfile(session.user.id);
       else setProfile(null);
       setLoading(false);
+      clearTimeout(safetyTimeout);
     });
 
     // Logout when browser tab is closed
